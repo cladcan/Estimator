@@ -1,73 +1,78 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { loadSettings, DEFAULT_SETTINGS } from '@/lib/data';
-import type { Settings } from '@/lib/pricing';
-import type { RateItem, SectionType } from '@/lib/types';
+import { useApp, toEmail, toUser } from '@/components/AuthGate';
+import type { Role, Settings } from '@/lib/types';
+import NumInput from '@/components/NumInput';
 
-const FIELDS: [keyof Settings, string][] = [
-  ['markup_pct', 'Default markup %'], ['contingency_pct', 'Default contingency %'], ['commission_pct', 'Default commission %'],
-  ['wsib_pct', 'WSIB % (on labour)'], ['hst_pct', 'HST %'], ['cut_bend_offset', 'Cut & bend = fab rate minus ($/SF)'],
+const NUMS: [keyof Settings, string][] = [
+  ['markup_pct', 'Default markup % (new jobs)'], ['contingency_pct', 'Default contingency % (new jobs)'], ['commission_pct', 'Default commission % (new jobs)'],
+  ['wsib_pct', 'WSIB % (when the line is blank)'], ['tax_pct', 'Tax % (HST default)'], ['cut_bend_offset', 'Cut & bend = fab rate minus ($)'], ['quote_valid_days', 'Quote valid for (days)'],
+];
+const LISTS: [keyof Settings, string][] = [
+  ['markup_default_kinds', 'Section kinds marked up by default'], ['no_markup_kinds', 'Section kinds never marked up'],
+  ['finished_face_kinds', 'Finished-face section kinds (count in job area)'], ['wsib_base_kinds', 'Section kinds whose lines go into the WSIB base'],
+  ['wave_exclusions', 'Wave exclusions list'],
 ];
 
 export default function SettingsPage() {
-  const [s, setS] = useState<Settings>(DEFAULT_SETTINGS);
-  const [types, setTypes] = useState<SectionType[]>([]);
-  const [rates, setRates] = useState<RateItem[]>([]);
+  const { settings, reloadSettings, isOwner, email } = useApp();
+  const [s, setS] = useState<Settings>(settings);
   const [msg, setMsg] = useState('');
-  const reload = async () => {
-    setS(await loadSettings());
-    setTypes((await supabase.from('section_types').select('*').order('sort')).data || []);
-    setRates((await supabase.from('rate_items').select('*').order('description')).data || []);
-  };
-  useEffect(() => { reload(); }, []);
+  const [members, setMembers] = useState<{ email: string; role: Role }[]>([]);
+  const [nu, setNu] = useState({ user: '', password: '', role: 'editor' as Role });
+  useEffect(() => setS(settings), [settings]);
+  const loadMembers = () => supabase.from('members').select('*').order('email').then(({ data }) => setMembers(data || []));
+  useEffect(() => { loadMembers(); }, []);
+  if (!isOwner) return <div className="card">Only the owner can change settings.</div>;
 
-  const saveSettings = async () => {
-    const { error } = await supabase.from('settings').upsert({ id: 1, ...s, updated_at: new Date().toISOString() });
-    setMsg(error ? error.message : 'Saved'); setTimeout(() => setMsg(''), 2000);
+  const save = async () => {
+    const { error } = await supabase.from('settings').update({ ...s, updated_at: new Date().toISOString() }).eq('id', 1);
+    setMsg(error ? error.message : 'Saved'); if (!error) reloadSettings(); setTimeout(() => setMsg(''), 3000);
   };
-  const saveRate = (r: RateItem) => supabase.from('rate_items').update({ description: r.description, unit: r.unit, unit_cost: r.unit_cost, is_labour: r.is_labour, section_type_id: r.section_type_id }).eq('id', r.id);
-  const patchRate = (id: string, p: Partial<RateItem>) => setRates(rs => rs.map(r => r.id === id ? { ...r, ...p } : r));
+  const createUser = async () => {
+    const { data: ss } = await supabase.auth.getSession();
+    const r = await fetch('/api/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ss.session?.access_token}` },
+      body: JSON.stringify({ email: toEmail(nu.user), password: nu.password, role: nu.role }) });
+    const j = await r.json().catch(() => ({})); setMsg(r.ok ? `Created ${nu.user}` : j.error || r.statusText);
+    if (r.ok) { setNu({ user: '', password: '', role: 'editor' }); loadMembers(); }
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 max-w-4xl">
       <section className="card space-y-3">
-        <h2 className="font-semibold">Company rates</h2>
+        <h2 className="font-semibold">Rates and defaults</h2>
         <div className="grid sm:grid-cols-3 gap-3">
-          {FIELDS.map(([k, label]) => (
-            <label key={k} className="text-sm">{label}
-              <input className="input" type="number" step="any" value={s[k]} onChange={e => setS({ ...s, [k]: Number(e.target.value) })} />
-            </label>
-          ))}
+          {NUMS.map(([k, l]) => <label key={k} className="text-sm">{l}<NumInput value={s[k] as number | null} onChange={x => setS({ ...s, [k]: x ?? (k === 'commission_pct' ? null : 0) })} /></label>)}
         </div>
-        <button className="btn-primary" onClick={saveSettings}>Save rates</button> <span className="text-sm text-green-700">{msg}</span>
+        {LISTS.map(([k, l]) => <label key={k} className="text-sm block">{l} <span className="text-xs text-gray-500">(comma separated)</span>
+          <input className="input" value={(s[k] as string[]).join(', ')} onChange={e => setS({ ...s, [k]: e.target.value.split(',').map(x => x.trim()).filter(Boolean) })} /></label>)}
+        <label className="text-sm block">Default Wave notes / terms<textarea className="input" rows={5} value={s.wave_terms} onChange={e => setS({ ...s, wave_terms: e.target.value })} /></label>
+        <h3 className="font-semibold pt-2">monday.com</h3>
+        <p className="text-xs text-gray-500">The API key itself is kept on the server (MONDAY_API_KEY in Vercel). Column ids are found in monday under each column&apos;s menu → &quot;Copy column ID&quot;.</p>
+        <div className="grid sm:grid-cols-3 gap-3">
+          <label className="text-sm">Jobs board id<input className="input" value={s.monday_board_id || ''} onChange={e => setS({ ...s, monday_board_id: e.target.value || null })} /></label>
+          {['client', 'phase', 'priority', 'owner', 'drive', 'quoted', 'estimate'].map(c => (
+            <label key={c} className="text-sm">{c} column id<input className="input" value={s.monday_columns[c] || ''} onChange={e => setS({ ...s, monday_columns: { ...s.monday_columns, [c]: e.target.value } })} /></label>))}
+        </div>
+        <button className="btn-primary" onClick={save}>Save settings</button> <span className="text-sm text-green-700">{msg}</span>
       </section>
 
       <section className="card space-y-3">
-        <h2 className="font-semibold">Section types</h2>
-        <div className="flex flex-wrap gap-2">{types.map(t => <span key={t.id} className="px-2 py-1 rounded bg-gray-100 text-sm">{t.name}</span>)}</div>
-        <button className="btn" onClick={async () => { const name = prompt('New section type'); if (name) { await supabase.from('section_types').insert({ name, sort: types.length + 1 }); reload(); } }}>Add section type</button>
-      </section>
-
-      <section className="card space-y-3 overflow-x-auto">
-        <h2 className="font-semibold">Rate book (default line items)</h2>
-        <table className="w-full">
-          <thead><tr><th className="th">Section</th><th className="th">Description</th><th className="th">Unit</th><th className="th">Unit cost</th><th className="th">Labour</th><th></th></tr></thead>
-          <tbody>
-            {rates.map(r => (
-              <tr key={r.id} className="border-t">
-                <td className="td"><select className="input" value={r.section_type_id || ''} onChange={e => patchRate(r.id, { section_type_id: e.target.value || null })} onBlur={() => saveRate(r)}>
-                  <option value="">Any</option>{types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></td>
-                <td className="td"><input className="input" value={r.description} onChange={e => patchRate(r.id, { description: e.target.value })} onBlur={() => saveRate(r)} /></td>
-                <td className="td w-24"><input className="input" value={r.unit} onChange={e => patchRate(r.id, { unit: e.target.value })} onBlur={() => saveRate(r)} /></td>
-                <td className="td w-32"><input className="input" type="number" step="any" value={r.unit_cost} onChange={e => patchRate(r.id, { unit_cost: Number(e.target.value) })} onBlur={() => saveRate(r)} /></td>
-                <td className="td"><input type="checkbox" checked={r.is_labour} onChange={e => { const nr = { ...r, is_labour: e.target.checked }; patchRate(r.id, nr); saveRate(nr); }} /></td>
-                <td className="td"><button className="text-red-600 text-sm" onClick={async () => { await supabase.from('rate_items').delete().eq('id', r.id); reload(); }}>Delete</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <button className="btn" onClick={async () => { await supabase.from('rate_items').insert({ description: 'New item' }); reload(); }}>Add rate item</button>
+        <h2 className="font-semibold">People</h2>
+        <table className="w-full"><thead><tr><th className="th">User</th><th className="th">Role</th><th></th></tr></thead><tbody>
+          {members.map(m => <tr key={m.email} className="border-t"><td className="td">{toUser(m.email)}</td>
+            <td className="td"><select className="input w-auto" value={m.role} disabled={m.email === email} onChange={async e => { await supabase.from('members').update({ role: e.target.value }).eq('email', m.email); loadMembers(); }}>
+              {['owner', 'editor', 'viewer'].map(r => <option key={r}>{r}</option>)}</select></td>
+            <td className="td">{m.email !== email && <button className="text-red-600 text-sm" onClick={async () => { if (confirm(`Remove ${toUser(m.email)}'s access?`)) { await supabase.from('members').delete().eq('email', m.email); loadMembers(); } }}>Remove access</button>}</td></tr>)}
+        </tbody></table>
+        <div className="grid sm:grid-cols-4 gap-2 items-end">
+          <label className="text-sm">Username<input className="input" value={nu.user} onChange={e => setNu({ ...nu, user: e.target.value })} /></label>
+          <label className="text-sm">Password<input className="input" type="text" value={nu.password} onChange={e => setNu({ ...nu, password: e.target.value })} /></label>
+          <label className="text-sm">Role<select className="input" value={nu.role} onChange={e => setNu({ ...nu, role: e.target.value as Role })}>{['owner', 'editor', 'viewer'].map(r => <option key={r}>{r}</option>)}</select></label>
+          <button className="btn-primary" disabled={!nu.user || nu.password.length < 8} onClick={createUser}>Add person</button>
+        </div>
+        <p className="text-xs text-gray-500">Passwords need at least 8 characters. Usernames sign in as username@{process.env.NEXT_PUBLIC_USERNAME_DOMAIN || 'hub.cladcan.ca'}; no email is sent.</p>
       </section>
     </div>
   );

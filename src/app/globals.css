@@ -1,10 +1,12 @@
 @import "tailwindcss";
 @layer components {
-  .input { @apply border border-gray-300 rounded px-2 py-1 w-full bg-white text-sm; }
-  .btn { @apply border border-gray-300 rounded px-3 py-1 text-sm bg-white hover:bg-gray-100; }
-  .btn-primary { @apply rounded px-3 py-1.5 text-sm bg-blue-700 text-white hover:bg-blue-800; }
+  .input { @apply border border-gray-300 rounded px-2 py-1 w-full bg-white text-sm disabled:bg-gray-50 disabled:text-gray-600; }
+  .btn { @apply border border-gray-300 rounded px-3 py-1 text-sm bg-white hover:bg-gray-100 disabled:opacity-50 whitespace-nowrap; }
+  .btn-sm { @apply border border-gray-300 rounded px-2 py-0.5 text-xs bg-white hover:bg-gray-100 whitespace-nowrap; }
+  .btn-primary { @apply rounded px-3 py-1.5 text-sm bg-blue-700 text-white hover:bg-blue-800 disabled:opacity-50 whitespace-nowrap; }
   .card { @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4; }
-  .th { @apply text-left text-xs font-medium text-gray-500 uppercase px-2 py-1; }
-  .td { @apply px-2 py-1 text-sm; }
+  .th { @apply text-left text-[11px] font-medium text-gray-500 uppercase px-1.5 py-1 whitespace-nowrap; }
+  .td { @apply px-1.5 py-0.5 text-sm align-middle; }
+  .pill { @apply text-xs px-2 py-0.5 rounded-full whitespace-nowrap; }
 }
 body { color: #0f172a; }
