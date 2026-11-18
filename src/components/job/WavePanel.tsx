@@ -48,8 +48,9 @@ export default function WavePanel({ v, library }: { v: JobView; library: Library
   const fillFromLibrary = () => { for (const s of secs) if (!s.ctext) { const e = library.find(x => x.id === s.lib); if (e?.ctext) api.patchSection(s.id, { ctext: e.ctext }); } };
 
   return (
-    <div className="card text-sm space-y-2">
-      <h2 className="font-semibold">Send to Wave</h2>
+    <details className="rounded-lg border-2 border-[#2c5f5d] bg-[var(--surface)] px-5 py-3 text-sm">
+      <summary className="cursor-pointer text-lg font-semibold display">Send to Wave · {secs.length} items · {money(calc.pr.Q)}</summary>
+      <div className="space-y-2 pt-3">
       <div className="grid grid-cols-3 gap-2">
         <label className="text-xs text-gray-500 col-span-3">Customer<TextInput disabled={!editable} value={w.customer ?? d.job.client ?? ''} onChange={customer => setW({ customer })} /></label>
         <label className="text-xs text-gray-500">Date<input type="date" className="input" disabled={!editable} value={w.date || today} onChange={e => setW({ date: e.target.value })} /></label>
@@ -70,6 +71,7 @@ export default function WavePanel({ v, library }: { v: JobView; library: Library
         <span className="text-xs text-green-700">{copied}</span>
         {blanks > 0 && <span className="text-xs text-amber-700">{blanks} blank{blanks > 1 ? 's' : ''} to fill</span>}
       </div>
-    </div>
+      </div>
+    </details>
   );
 }

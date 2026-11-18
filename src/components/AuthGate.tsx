@@ -32,13 +32,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (session === undefined || (session && role === undefined)) return <div className="p-8 text-gray-500">Loading…</div>;
   if (!session) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <form className="bg-white shadow rounded-lg p-6 w-full max-w-sm space-y-3" onSubmit={async e => {
         e.preventDefault(); setErr(''); setBusy(true);
         const r = await supabase.auth.signInWithPassword({ email: toEmail(user), password: pw });
         setBusy(false); if (r.error) setErr(r.error.message === 'Invalid login credentials' ? 'Wrong username or password.' : r.error.message);
       }}>
-        <h1 className="text-xl font-semibold">CladCan Estimating Hub</h1>
+        <h1 className="text-2xl font-semibold">CladCan Estimating Hub</h1>
         <input className="input" placeholder="Username" autoComplete="username" value={user} onChange={e => setUser(e.target.value)} required />
         <input className="input" type="password" placeholder="Password" autoComplete="current-password" value={pw} onChange={e => setPw(e.target.value)} required />
         {err && <p className="text-sm text-red-600">{err}</p>}
@@ -56,10 +56,10 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const ctx: Ctx = { email, role, canEdit: role !== 'viewer', isOwner: role === 'owner', settings, reloadSettings };
   return (
     <AppCtx.Provider value={ctx}>
-      <div className="min-h-screen bg-slate-100">
-        <header className="bg-slate-900 text-white print:hidden">
+      <div className="min-h-screen">
+        <header className="border-b border-[var(--line)] bg-[var(--surface)] print:hidden">
           <div className="max-w-[1400px] mx-auto px-4 h-12 flex items-center gap-5 text-sm">
-            <Link href="/" className="font-semibold">CladCan Hub</Link>
+            <Link href="/" className="display font-semibold text-lg">CladCan Estimating Hub</Link>
             <Link href="/" className="opacity-80 hover:opacity-100">Jobs</Link>
             <Link href="/catalogue" className="opacity-80 hover:opacity-100">Catalogue</Link>
             <Link href="/library" className="opacity-80 hover:opacity-100">Library</Link>

@@ -1,12 +1,27 @@
 @import "tailwindcss";
+:root {
+  --bg: #f2f3f0; --surface: #fbfbf9; --sunk: #e9ebe7; --field: #ffffff; --ink: #171b1a; --ink2: #4b5450; --muted: #737d78;
+  --line: #d5d9d4; --accent: #1c5cab; --ok: #2e7d32; --warn: #9a5b00; --warn-soft: #fdf1dc; --bad: #c62828; --bad-soft: #fbe9e7;
+  --display: "Barlow Condensed", "Arial Narrow", Arial, sans-serif; --body: "Barlow", "Segoe UI", Arial, sans-serif;
+}
+body { color: var(--ink); background: var(--bg); font-family: var(--body); font-size: 15px; }
+h1, h2, h3, .display { font-family: var(--display); }
 @layer components {
-  .input { @apply border border-gray-300 rounded px-2 py-1 w-full bg-white text-sm disabled:bg-gray-50 disabled:text-gray-600; }
-  .btn { @apply border border-gray-300 rounded px-3 py-1 text-sm bg-white hover:bg-gray-100 disabled:opacity-50 whitespace-nowrap; }
-  .btn-sm { @apply border border-gray-300 rounded px-2 py-0.5 text-xs bg-white hover:bg-gray-100 whitespace-nowrap; }
-  .btn-primary { @apply rounded px-3 py-1.5 text-sm bg-blue-700 text-white hover:bg-blue-800 disabled:opacity-50 whitespace-nowrap; }
-  .card { @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4; }
-  .th { @apply text-left text-[11px] font-medium text-gray-500 uppercase px-1.5 py-1 whitespace-nowrap; }
+  .label { font-family: var(--display); font-weight: 600; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: #36506a; }
+  .input { @apply rounded px-2 py-1 w-full text-sm; background: var(--field); border: 1px solid var(--line); }
+  .input:disabled { background: var(--surface); color: var(--ink2); }
+  .btn { @apply rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap disabled:opacity-50; background: var(--field); border: 1px solid var(--line); }
+  .btn:hover:not(:disabled) { background: var(--sunk); }
+  .btn-sm { @apply rounded px-2 py-0.5 text-xs whitespace-nowrap; background: var(--field); border: 1px solid var(--line); }
+  .btn-primary { @apply rounded-md px-3 py-1.5 text-sm font-medium text-white whitespace-nowrap disabled:opacity-50; background: #2b4d72; }
+  .btn-primary:hover:not(:disabled) { background: #1f3a58; }
+  .chip { @apply inline-flex items-center rounded-full px-3.5 py-1.5 text-[15px] font-medium whitespace-nowrap; background: var(--field); border: 1px solid var(--line); color: var(--accent); }
+  .chip:hover { background: #f4f7fb; }
+  .seg { @apply rounded-full px-4 py-1.5 text-sm font-medium disabled:opacity-60; color: var(--muted); }
+  .seg-on { background: var(--ink); color: white; }
+  .card { @apply rounded-lg p-4; background: var(--surface); border: 1px solid var(--line); }
+  .tile { @apply rounded-lg p-4; background: var(--surface); border: 1px solid var(--line); }
+  .th { @apply text-left px-1.5 py-1 whitespace-nowrap; font-family: var(--display); font-weight: 600; font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
   .td { @apply px-1.5 py-0.5 text-sm align-middle; }
   .pill { @apply text-xs px-2 py-0.5 rounded-full whitespace-nowrap; }
 }
-body { color: #0f172a; }

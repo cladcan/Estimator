@@ -13,7 +13,7 @@ export default function LibraryMenu({ e, onAdd, onNewOption }: { e: LibraryEntry
   }, [open]);
   return (
     <div className="relative" ref={ref}>
-      <button className="btn rounded-full text-blue-800" onClick={() => setOpen(!open)}>+ {e.name} ▾</button>
+      <button className="chip" onClick={() => setOpen(!open)}>+ {e.name} <span className="ml-1 text-xs">▾</span></button>
       {open && (
         <div className="absolute z-30 mt-1 w-64 bg-white border rounded shadow-lg py-1 text-sm">
           <button className="block w-full text-left px-3 py-1.5 hover:bg-slate-100 font-medium" onClick={() => { setOpen(false); onAdd(); }}>Standard</button>

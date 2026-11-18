@@ -144,100 +144,94 @@ export default function JobPage() {
     const j = await r.json().catch(() => ({})); flash(r.ok ? `monday updated: ${j.message || 'done'}` : `monday: ${j.error || r.statusText}`);
   };
 
+  const saveState = status.offline ? { t: 'NOT CONNECTED · read-only copy', c: 'text-amber-800 border-amber-600' }
+    : status.error ? { t: 'NOT SAVED · ' + status.error, c: 'text-red-700 border-red-600' }
+    : status.pending ? { t: 'Saving…', c: 'text-gray-600 border-gray-400' } : { t: 'Saved to the database', c: 'text-green-800 border-green-700' };
+  const scopeLabel = SCOPES.find(s => s.id === job.scope)?.label || '';
+  const usedPct = calc.budget ? calc.actual / calc.budget * 100 : 0;
+  const budgetNow = started ? calc.budget : calc.pr.P;
+  const marginBase = started ? calc.contractTotal : calc.pr.Q;
+  const tile = (label: string, val: number, color: string, sub?: string, extra = '') => (
+    <div key={label} className={`tile ${extra}`}><div className="label">{label}</div><div className={`text-2xl font-semibold ${color}`}>{money(tx(val))}</div>{sub && <div className="text-sm text-[var(--muted)]">{sub}</div>}</div>
+  );
+
   return (
-    <div className="space-y-3">
-      {/* Top strip */}
-      <div className="card py-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-        <button className="btn" onClick={() => router.push('/')}>← Jobs</button>
-        <div><TextInput className="font-semibold text-base min-w-64" value={job.name} disabled={!editable} onChange={name => api.patchJob({ name })} /></div>
-        <span className="text-gray-500">{job.ref}</span>
-        <label className="flex items-center gap-1 text-gray-500">Client<TextInput className="w-40" value={job.client} disabled={!editable} onChange={client => api.patchJob({ client })} /></label>
-        <label className="flex items-center gap-1 text-gray-500">Wave #<TextInput className="w-24" value={job.estimate_no} disabled={!editable} onChange={estimate_no => api.patchJob({ estimate_no: estimate_no || null })} /></label>
-        <label className="flex items-center gap-1 text-gray-500">Scope<select className="input w-auto" disabled={!editable || started} value={job.scope} onChange={e => api.patchJob({ scope: e.target.value })}>{SCOPES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
-        {job.monday_url && <a className="text-blue-700 underline" href={job.monday_url} target="_blank" rel="noreferrer">Open on the Jobs board</a>}
-        {job.drive && <a className="text-blue-700 underline" href={job.drive} target="_blank" rel="noreferrer">Drive</a>}
-        <span className="text-gray-500">monday phase: {mondayPhase}</span>
-        {editable && job.monday_id && <button className="btn" onClick={updateMonday}>Update monday</button>}
-        <div className="ml-auto flex items-center gap-2">
-          {editable && !started && <button className="btn text-red-600" onClick={() => setModal('delete')}>Delete job…</button>}
-        </div>
-      </div>
-
-      {/* Mode bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex rounded border overflow-hidden">
-          <button onClick={() => setViewMode('estimation')} className={`px-3 py-1 text-sm ${mode === 'estimation' ? 'bg-slate-900 text-white' : 'bg-white'}`}>Estimation</button>
-          <button disabled={!started || !editable} title={started ? 'Open a change order to price added or removed scope' : 'Start the project first'} onClick={async () => { if (!openCO) await api.openCO(); setViewMode('project'); }}
-            className={`px-3 py-1 text-sm ${mode === 'project' && openCO ? 'bg-indigo-700 text-white' : 'bg-white disabled:text-gray-300'}`}>Change order</button>
-          <button disabled={!started} onClick={() => setViewMode('project')} className={`px-3 py-1 text-sm ${mode === 'project' && !openCO ? 'bg-slate-900 text-white' : 'bg-white disabled:text-gray-300'}`}>Project</button>
-        </div>
-        <label className="text-sm flex items-center gap-1"><input type="checkbox" checked={taxIn} onChange={e => { setTaxIn(e.target.checked); try { localStorage.setItem(taxKey, e.target.checked ? '1' : '0'); } catch {} }} />Show tax in ({r2(rate * 100)}%)</label>
-        {started && <span className="text-sm text-gray-600">Started {new Date(job.started!).toLocaleDateString('en-CA')} by {job.started_by} · contract {money(Number(job.contract))}</span>}
-        <div className="ml-auto flex gap-2">
-          {editable && !started && <button className="btn-primary" onClick={() => setModal('start')}>Start project</button>}
-          {editable && started && <button className="btn" onClick={() => setModal('reopen')}>Reopen estimate</button>}
-          {editable && started && !openCO && <button className="btn" onClick={() => api.openCO()}>Open change order</button>}
-          {editable && openCO && <>
-            <span className="pill bg-indigo-100 text-indigo-800 self-center">{coLabel(d.cos, openCO.id)} open: new lines and sections go on it</span>
-            <button className="btn-primary" onClick={() => setModal('issue')}>Issue {coLabel(d.cos, openCO.id)}</button>
-            <button className="btn text-red-600" onClick={() => confirm('Discard this open change order and everything on it?') && api.deleteCO(openCO.id)}>Discard</button>
-          </>}
-        </div>
-      </div>
-
-      {mode === 'estimation' && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {([['Budget (estimated)' + (started ? ' · locked' : ' · open'), calc.pr.P, 'text-blue-800', ''], ['Actual cost to date', calc.actual, 'text-amber-700', calc.pr.P ? `${(calc.actual / calc.pr.P * 100).toFixed(0)}% of the budget used` : ''],
-            ['Difference (budget less actual)', calc.pr.P - calc.actual, 'text-green-700', calc.actual ? '' : 'no costs entered yet'], ['Margin on budget', calc.pr.Q - calc.pr.P, 'text-green-700', calc.pr.Q ? `${((calc.pr.Q - calc.pr.P) / calc.pr.Q * 100).toFixed(0)}% margin` : '']] as const).map(([l, val, c, sub]) => (
-            <div key={l} className="card py-2"><div className="text-xs text-gray-500 uppercase">{l}</div><div className={`text-xl font-semibold ${c}`}>{money(tx(val))}</div>{sub && <div className="text-xs text-gray-500">{sub}</div>}</div>))}
-        </div>
-      )}
-      {mode === 'project' && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          {[['Contract incl. COs', calc.contractTotal], ['Total budget', calc.budget], ['Actual cost to date', calc.actual], ['Difference (budget − actual)', calc.budget - calc.actual], ['Margin to date', calc.contractTotal - calc.actual]].map(([l, val]) => (
-            <div key={l as string} className="card py-2"><div className="text-xs text-gray-500">{l}</div><div className={`text-lg font-semibold ${(val as number) < 0 ? 'text-red-600' : ''}`}>{money(tx(val as number))}</div></div>))}
-          {d.cos.filter(c => c.issued).length > 0 && <div className="col-span-full text-xs text-gray-600">
-            {d.cos.filter(c => c.issued).map(c => `${coLabel(d.cos, c.id)} (${c.type}${c.type === 'client' ? `, ${money(Number(c.price))}` : ''}, issued ${c.issued})`).join(' · ')}</div>}
-        </div>
-      )}
-
-      <div className="grid xl:grid-cols-[1fr_400px] gap-3 items-start">
-        <div className="space-y-3">
-          <div className="flex flex-wrap gap-2 text-sm">
-            <button className="btn" onClick={() => setFoldCmd(c => ({ n: c.n + 1, fold: true }))}>Close all sections</button>
-            <button className="btn" onClick={() => setFoldCmd(c => ({ n: c.n + 1, fold: false }))}>Open all sections</button>
-            <label className="btn flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={onlyLeft} onChange={e => setOnlyLeft(e.target.checked)} />Show only what&apos;s left</label>
-            {editable && ticked.length > 0 && <button className="btn" onClick={() => { if (confirm(`Untick all ${ticked.length} ticked to-dos?`)) ticked.forEach(l => api.patchLine(l.id, { done: false })); }}>Clear all ticks</button>}
-            {mode === 'project' && <span className="ml-auto self-center text-gray-600">Contract {money(tx(calc.contractTotal))} · margin on budget {money(tx(calc.contractTotal - calc.budget))}{calc.contractTotal ? ` (${((calc.contractTotal - calc.budget) / calc.contractTotal * 100).toFixed(1)}%)` : ''} · on actual {money(tx(calc.contractTotal - calc.actual))}</span>}
+    <div className="space-y-4">
+      <Link href="/" className="text-[var(--accent)] text-sm">← All jobs</Link>
+      {/* Header */}
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="mr-auto min-w-0">
+          <div className="label">Job checklist and cost tracker · {scopeLabel}</div>
+          <TextInput className="display text-3xl font-semibold border-transparent bg-transparent px-0 min-w-[20rem]" value={job.name} disabled={!editable} onChange={name => api.patchJob({ name })} />
+          <div className="flex flex-wrap items-center gap-3 mt-1 text-sm">
+            <span className="px-2 py-0.5 bg-[var(--sunk)] rounded display font-semibold">{job.ref}</span>
+            <label className="flex items-center gap-2 text-[var(--ink2)]">Client<TextInput className="w-44" value={job.client} disabled={!editable} onChange={client => api.patchJob({ client })} /></label>
+            <label className="flex items-center gap-2 text-[var(--ink2)]">Wave estimate #<TextInput className="w-32" value={job.estimate_no} disabled={!editable} onChange={estimate_no => api.patchJob({ estimate_no: estimate_no || null })} /></label>
+            <label className="flex items-center gap-2 text-[var(--ink2)]">Scope<select className="input w-auto" disabled={!editable || started} value={job.scope} onChange={e => api.patchJob({ scope: e.target.value })}>{SCOPES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
+            {job.drive && <a className="text-[var(--accent)] underline" href={job.drive} target="_blank" rel="noreferrer">Drive ↗</a>}
+            {editable && !started && <button className="btn" onClick={() => setModal('delete')}>Delete job…</button>}
           </div>
-          {sections.map((s, i) => <SectionCard key={s.id} v={v} sec={s} num={i + 1} />)}
-          {!sections.length && <div className="card text-gray-500 text-sm">No sections yet. Add one from the buttons below.</div>}
-          {editable && (!started || mode === 'project') && (
-            <div className="card space-y-2">
-              <div className="text-xs text-gray-500">Add a section{started ? (openCO ? ` to ${coLabel(d.cos, openCO.id)}` : ' (not in budget)') : ''}</div>
-              <div className="flex flex-wrap gap-1">
-                {visibleLib.map(e => <LibraryMenu key={e.id} e={e} onAdd={pid => addFromLibrary(e, pid)} onNewOption={name => addNewOption(e, name)} />)}
-                <button className="btn rounded-full" onClick={() => setPicker({ kind: 'add' })}>+ From catalogue…</button>
-                <button className="btn rounded-full border-dashed" onClick={addBlank}>+ Blank section</button>
-                <Link className="btn rounded-full border-dashed text-gray-600" href="/library">Arrange / remove</Link>
-              </div>
-              <div className="text-xs text-gray-500">Click one to open its options, then pick the one to add. &quot;Standard&quot; adds the section with its usual items. Type a new option at the bottom of a menu to keep it for next time.</div>
-            </div>
-          )}
         </div>
-        <div className="space-y-3 xl:sticky xl:top-3">
-          <PricingPanel v={v} />
-          <WavePanel v={v} library={library} />
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`rounded-full border px-3 py-1 text-sm font-medium display ${saveState.c}`}>● {saveState.t}</span>
+          <button className="btn" onClick={() => { const anyOpen = true; setFoldCmd(c => ({ n: c.n + 1, fold: !c.fold && anyOpen })); }}>{foldCmd.fold ? 'Open all sections' : 'Close all sections'}</button>
+          <button className={`btn ${onlyLeft ? 'bg-[var(--sunk)]!' : ''}`} onClick={() => setOnlyLeft(!onlyLeft)}>{onlyLeft ? 'Show everything' : "Show only what's left"}</button>
+          <button className="btn" disabled={!editable || !ticked.length} onClick={() => { if (confirm(`Untick all ${ticked.length} ticked items?`)) ticked.forEach(l => api.patchLine(l.id, { done: false })); }}>Clear all ticks</button>
         </div>
       </div>
 
-      {/* Status bar */}
-      <div className="fixed bottom-2 left-2 text-xs bg-white border shadow rounded px-2 py-1 print:hidden">
-        {status.offline ? <span className="text-amber-700">Offline: showing a read-only saved copy</span>
-          : status.error ? <span className="text-red-600">Save error: {status.error}</span>
-          : status.pending ? <span className="text-gray-600">Saving…</span>
-          : <span className="text-green-700">All changes saved{status.savedAt ? ` ${status.savedAt.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}` : ''}</span>}
+      {/* Stage switch + tiles */}
+      <div className="grid lg:grid-cols-[auto_1fr] gap-3 items-stretch">
+        <div className="space-y-2">
+          <div className="inline-flex rounded-full bg-[var(--sunk)] p-1">
+            <button onClick={() => setViewMode('estimation')} className={`seg ${mode === 'estimation' ? 'seg-on' : ''}`}>Estimation</button>
+            <button disabled={!started || !editable} title={started ? 'Price added or removed scope' : 'Start the project first'} onClick={async () => { if (!openCO) await api.openCO(); setViewMode('project'); }} className={`seg ${mode === 'project' && openCO ? 'seg-on' : ''}`}>Change order</button>
+            <button disabled={!started} onClick={() => setViewMode('project')} className={`seg ${mode === 'project' && !openCO ? 'seg-on' : ''}`}>Project</button>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-[var(--ink2)]">
+            <span>{!started ? 'Estimating · budget is open' : openCO ? `${coLabel(d.cos, openCO.id)} open · new lines go on it` : 'Project · budget is fixed'}</span>
+            <button className="btn" onClick={() => { setTaxIn(!taxIn); try { localStorage.setItem(taxKey, !taxIn ? '1' : '0'); } catch {} }}>{taxIn ? `Tax in (${r2(rate * 100)}%)` : 'Before tax'}</button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {editable && !started && <button className="btn border-green-700! text-green-800" onClick={() => setModal('start')}>Start the project…</button>}
+            {editable && started && <button className="btn" onClick={() => setModal('reopen')}>Reopen estimate…</button>}
+            {editable && openCO && <>
+              <button className="btn-primary" onClick={() => setModal('issue')}>Issue {coLabel(d.cos, openCO.id)}…</button>
+              <button className="btn text-red-700" onClick={() => confirm('Discard this open change order and everything on it?') && api.deleteCO(openCO.id)}>Discard</button>
+            </>}
+          </div>
+          {started && <div className="text-xs text-[var(--muted)]">Started {new Date(job.started!).toLocaleDateString('en-CA')} by {job.started_by}{d.cos.some(c => c.issued) ? ' · ' + d.cos.filter(c => c.issued).map(c => `${coLabel(d.cos, c.id)} ${c.type}${c.type === 'client' ? ' ' + money(Number(c.price)) : ''}`).join(' · ') : ''}</div>}
+        </div>
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          {tile(started ? 'Budget · fixed' : 'Budget (estimated) · open', budgetNow, 'text-[var(--accent)]', '', 'bg-[#eef2f8]!')}
+          {tile('Actual cost to date', calc.actual, 'text-[var(--warn)]', budgetNow ? `${(calc.actual / budgetNow * 100).toFixed(0)}% of the budget used` : '')}
+          {tile('Difference (budget less actual)', budgetNow - calc.actual, budgetNow - calc.actual < 0 ? 'text-[var(--bad)]' : 'text-[var(--ok)]', calc.actual ? (usedPct > 100 ? 'over budget' : '') : 'no costs entered yet', 'bg-[#eef5ee]!')}
+          {tile(started ? 'Contract · margin' : 'Margin on budget', marginBase - budgetNow, 'text-[var(--ok)]', marginBase ? `${((marginBase - budgetNow) / marginBase * 100).toFixed(0)}% margin${started ? ` · on actual ${money(tx(marginBase - calc.actual))}` : ''}` : '')}
+        </div>
       </div>
+
+      {/* Add a section */}
+      {editable && (!started || mode === 'project') && (
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--sunk)] p-4 space-y-2">
+          <div className="label">Add a section to this job{started ? (openCO ? ` · goes on ${coLabel(d.cos, openCO.id)}` : ' · not in budget') : ''}</div>
+          <div className="flex flex-wrap gap-2">
+            {visibleLib.map(e => <LibraryMenu key={e.id} e={e} onAdd={pid => addFromLibrary(e, pid)} onNewOption={name => addNewOption(e, name)} />)}
+            <button className="chip" onClick={() => setPicker({ kind: 'add' })}>+ From catalogue</button>
+            <button className="chip border-dashed! text-[var(--ink2)]!" onClick={addBlank}>+ Blank section</button>
+            <Link className="chip border-dashed! text-[var(--muted)]!" href="/library">Arrange / remove</Link>
+          </div>
+          <div className="text-sm text-[var(--ink2)]">Click one to open its options, then pick the one to add to the job. &quot;Standard&quot; adds the section with its usual items. Type a new option at the bottom of a menu to keep it for next time.</div>
+        </div>
+      )}
+
+      <PricingPanel v={v} />
+      <WavePanel v={v} library={library} />
+
+      <div className="space-y-3">
+        {sections.map((s, i) => <SectionCard key={s.id} v={v} sec={s} num={i + 1} />)}
+        {!sections.length && <div className="card text-[var(--muted)] text-sm">No sections yet. Add one from the box above.</div>}
+      </div>
+
       {toast && <div className="fixed bottom-2 right-2 text-sm bg-slate-900 text-white rounded px-3 py-2 shadow flex gap-3 z-50">{toast.msg}{toast.undo && <button className="underline" onClick={toast.undo}>Undo</button>}<button onClick={() => setToast(null)}>×</button></div>}
 
       {picker && <CatalogPicker title={picker.kind === 'finish' ? 'Pick the new finish (any product, the tier is what counts)' : 'Add from catalogue'}
