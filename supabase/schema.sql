@@ -297,6 +297,11 @@ drop policy if exists members_owner on members;
 create policy members_read on members for select to authenticated using (is_member());
 create policy members_owner on members for all to authenticated using (is_owner()) with check (is_owner());
 
+-- Signed-in users get table access; the row rules above decide what each role can actually do.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+revoke all on all tables in schema public from anon;
 grant usage on sequence job_ref_seq to authenticated;
 grant execute on function next_job_ref, start_project, reopen_estimate, my_role, import_pin to authenticated;
 
