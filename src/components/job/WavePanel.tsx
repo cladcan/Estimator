@@ -21,8 +21,9 @@ export default function WavePanel({ v, library }: { v: JobView; library: Library
   const { d, calc, api, st, editable } = v;
   const w: Wave = d.job.wave || {};
   const [copied, setCopied] = useState('');
-  const today = new Date().toISOString().slice(0, 10);
-  const plus = (days: number) => new Date(Date.now() + days * 864e5).toISOString().slice(0, 10);
+  const [now] = useState(() => Date.now());
+  const today = new Date(now).toISOString().slice(0, 10);
+  const plus = (days: number) => new Date(now + days * 864e5).toISOString().slice(0, 10);
   const setW = (p: Partial<Wave>) => api.patchJob({ wave: { ...w, ...p } });
   const secs = d.sections.filter(s => !s.proj_off && !s.proj_only && !s.co_id);
 

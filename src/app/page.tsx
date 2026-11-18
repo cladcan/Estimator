@@ -27,7 +27,7 @@ export default function Home() {
   };
   useEffect(() => { load(); }, []);
 
-  const all = rows || [];
+  const all = useMemo(() => rows || [], [rows]);
   const started = all.filter(r => r.started);
   const tiles = [
     ['Estimates open', String(all.length - started.length)],
