@@ -1,5 +1,5 @@
 'use client';
-import { money, r2 } from '@/lib/calc';
+import { isFinishedFace, money, r2 } from '@/lib/calc';
 import NumInput from '@/components/NumInput';
 import TextInput from '@/components/TextInput';
 import type { JobView } from './types';
@@ -47,10 +47,16 @@ export default function PricingPanel({ v }: { v: JobView }) {
       <div className="flex justify-between text-gray-600"><span>Margin {mode === 'project' ? '(contract − actual)' : '(Q − P)'}</span><span>{money(margin)} {marginBase ? `(${(margin / marginBase * 100).toFixed(1)}%)` : ''}</span></div>
 
       <details className="pt-2 border-t">
-        <summary className="cursor-pointer text-gray-600">Area {p.area.toLocaleString('en-CA')} SF {p.area !== p.autoArea ? `(auto ${p.autoArea.toLocaleString('en-CA')})` : '(auto)'} · tax {taxPct ?? v.st.tax_pct}%</summary>
+        <summary className="cursor-pointer text-gray-600">Total installed cladding area {p.area.toLocaleString('en-CA')} SF {p.area !== p.autoArea ? `(auto ${p.autoArea.toLocaleString('en-CA')})` : '(auto)'} · tax {taxPct ?? v.st.tax_pct}%</summary>
         <div className="space-y-2 pt-2">
           <label className="block text-xs text-gray-500">Area override (blank = auto, a number replaces it, +N/−N adjusts)
             <TextInput disabled={!editable} value={pr.sf ?? ''} onChange={s => setPr({ sf: s || null })} /></label>
+          <div className="text-xs text-gray-500">Which sections count</div>
+          {d.sections.filter(s => !s.proj_only && !s.co_id).map(s => { const auto = isFinishedFace({ ...s, fin: false }, v.st); return (
+            <label key={s.id} className="flex items-center gap-2 text-xs">
+              <input type="checkbox" disabled={!editable || auto} checked={auto || s.fin} onChange={e => api.patchSection(s.id, { fin: e.target.checked })} />
+              <span className="flex-1">{s.name}{auto ? ' (always: finished face)' : ''}</span><span className="text-gray-500">{Number(s.area || 0).toLocaleString('en-CA')} SF</span>
+            </label>); })}
           <div className="text-xs text-gray-500">Extra areas</div>
           {(pr.x || []).map((x, i) => (
             <div key={i} className="flex gap-1">

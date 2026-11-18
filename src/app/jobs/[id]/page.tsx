@@ -11,6 +11,8 @@ import SectionCard from '@/components/job/SectionCard';
 import PricingPanel from '@/components/job/PricingPanel';
 import WavePanel from '@/components/job/WavePanel';
 import CatalogPicker from '@/components/job/CatalogPicker';
+import LibraryMenu from '@/components/job/LibraryMenu';
+import Link from 'next/link';
 import TextInput from '@/components/TextInput';
 import NumInput from '@/components/NumInput';
 import type { JobView } from '@/components/job/types';
@@ -69,6 +71,14 @@ export default function JobPage() {
     const sec = blankSection({ job_id: job.id, name: same ? `${preset?.name || e.name} ${same + 1}` : preset?.name || e.name, lib: e.id, preset: preset?.id || null,
       sheet_sqft: preset?.sheetSqft ?? e.sheet_sqft, ctext: preset?.ctext ?? e.ctext, mk: e.mk, ...sectionFlags() });
     await api.insertSections([sec], linesFrom(sec, preset?.items || e.items || []), placeAfterSameKind(e.id, [sec.id]));
+  };
+  const addNewOption = async (e: LibraryEntry, name: string) => {
+    const preset = { id: newId('pre'), name: `${e.name} - ${name}`, items: e.items || [], sheetSqft: e.sheet_sqft, ctext: e.ctext };
+    const presets = [...(e.presets || []), preset];
+    const { error } = await supabase.from('library').update({ presets }).eq('id', e.id);
+    if (error) return flash(error.message);
+    setLibrary(l => l.map(x => (x.id === e.id ? { ...x, presets } : x)));
+    await addFromLibrary({ ...e, presets }, preset.id);
   };
   const addBlank = async () => {
     const sec = blankSection({ job_id: job.id, name: 'New section', ...sectionFlags() });
@@ -156,8 +166,10 @@ export default function JobPage() {
       {/* Mode bar */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded border overflow-hidden">
-          {(['estimation', 'project'] as const).map(m => <button key={m} disabled={m === 'project' && !started} onClick={() => setViewMode(m)}
-            className={`px-3 py-1 text-sm capitalize ${mode === m ? 'bg-slate-900 text-white' : 'bg-white disabled:text-gray-300'}`}>{m}</button>)}
+          <button onClick={() => setViewMode('estimation')} className={`px-3 py-1 text-sm ${mode === 'estimation' ? 'bg-slate-900 text-white' : 'bg-white'}`}>Estimation</button>
+          <button disabled={!started || !editable} title={started ? 'Open a change order to price added or removed scope' : 'Start the project first'} onClick={async () => { if (!openCO) await api.openCO(); setViewMode('project'); }}
+            className={`px-3 py-1 text-sm ${mode === 'project' && openCO ? 'bg-indigo-700 text-white' : 'bg-white disabled:text-gray-300'}`}>Change order</button>
+          <button disabled={!started} onClick={() => setViewMode('project')} className={`px-3 py-1 text-sm ${mode === 'project' && !openCO ? 'bg-slate-900 text-white' : 'bg-white disabled:text-gray-300'}`}>Project</button>
         </div>
         <label className="text-sm flex items-center gap-1"><input type="checkbox" checked={taxIn} onChange={e => { setTaxIn(e.target.checked); try { localStorage.setItem(taxKey, e.target.checked ? '1' : '0'); } catch {} }} />Show tax in ({r2(rate * 100)}%)</label>
         {started && <span className="text-sm text-gray-600">Started {new Date(job.started!).toLocaleDateString('en-CA')} by {job.started_by} · contract {money(Number(job.contract))}</span>}
@@ -173,6 +185,13 @@ export default function JobPage() {
         </div>
       </div>
 
+      {mode === 'estimation' && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          {([['Budget (estimated)' + (started ? ' · locked' : ' · open'), calc.pr.P, 'text-blue-800', ''], ['Actual cost to date', calc.actual, 'text-amber-700', calc.pr.P ? `${(calc.actual / calc.pr.P * 100).toFixed(0)}% of the budget used` : ''],
+            ['Difference (budget less actual)', calc.pr.P - calc.actual, 'text-green-700', calc.actual ? '' : 'no costs entered yet'], ['Margin on budget', calc.pr.Q - calc.pr.P, 'text-green-700', calc.pr.Q ? `${((calc.pr.Q - calc.pr.P) / calc.pr.Q * 100).toFixed(0)}% margin` : '']] as const).map(([l, val, c, sub]) => (
+            <div key={l} className="card py-2"><div className="text-xs text-gray-500 uppercase">{l}</div><div className={`text-xl font-semibold ${c}`}>{money(tx(val))}</div>{sub && <div className="text-xs text-gray-500">{sub}</div>}</div>))}
+        </div>
+      )}
       {mode === 'project' && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           {[['Contract incl. COs', calc.contractTotal], ['Total budget', calc.budget], ['Actual cost to date', calc.actual], ['Difference (budget − actual)', calc.budget - calc.actual], ['Margin to date', calc.contractTotal - calc.actual]].map(([l, val]) => (
@@ -197,15 +216,12 @@ export default function JobPage() {
             <div className="card space-y-2">
               <div className="text-xs text-gray-500">Add a section{started ? (openCO ? ` to ${coLabel(d.cos, openCO.id)}` : ' (not in budget)') : ''}</div>
               <div className="flex flex-wrap gap-1">
-                {visibleLib.map(e => (
-                  <span key={e.id} className="inline-flex">
-                    <button className="btn" onClick={() => addFromLibrary(e)}>+ {e.name}</button>
-                    {e.presets?.length > 0 && <select className="input w-6 px-0 border-l-0 rounded-l-none" value="" title="Presets" onChange={ev => ev.target.value && addFromLibrary(e, ev.target.value)}>
-                      <option value="">▾</option>{e.presets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
-                  </span>))}
-                <button className="btn" onClick={() => setPicker({ kind: 'add' })}>+ From catalogue…</button>
-                <button className="btn" onClick={addBlank}>+ Blank section</button>
+                {visibleLib.map(e => <LibraryMenu key={e.id} e={e} onAdd={pid => addFromLibrary(e, pid)} onNewOption={name => addNewOption(e, name)} />)}
+                <button className="btn rounded-full" onClick={() => setPicker({ kind: 'add' })}>+ From catalogue…</button>
+                <button className="btn rounded-full border-dashed" onClick={addBlank}>+ Blank section</button>
+                <Link className="btn rounded-full border-dashed text-gray-600" href="/library">Arrange / remove</Link>
               </div>
+              <div className="text-xs text-gray-500">Click one to open its options, then pick the one to add. &quot;Standard&quot; adds the section with its usual items. Type a new option at the bottom of a menu to keep it for next time.</div>
             </div>
           )}
         </div>

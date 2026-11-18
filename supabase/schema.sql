@@ -318,3 +318,20 @@ end $$;
 -- ───────── First owner ─────────
 -- After creating your own user in Supabase (Authentication → Users), run:
 --   insert into members (email, role) values ('jeff@hub.cladcan.ca', 'owner');
+
+-- ───────── Starter section buttons (skipped if they already exist; an import of the old hub replaces them) ─────────
+insert into library (id, name, pos, items, sheet_sqft, wave_group) values
+ ('acm','ACM',1,'[{"name":"Sheets","type":"Material","role":"sheets"},{"name":"Fabrication","type":"Material","role":"fab"},{"name":"Cut & bend","type":"Material","role":"cutbend"},{"name":"Wastage","type":"Material","role":"wastage"},{"name":"Extrusions / clips","type":"Material"},{"name":"Fasteners & sealant","type":"Material"}]',50,'cladding'),
+ ('siding','Siding & Cladding',2,'[{"name":"Siding panels","type":"Material"},{"name":"Trims & accessories","type":"Material"},{"name":"Fasteners","type":"Material"}]',null,'cladding'),
+ ('aluminum','Aluminum Work',3,'[{"name":"Aluminum material","type":"Material"},{"name":"Fabrication","type":"Labour"}]',null,'aluminum'),
+ ('barriers','Air & Weather Barriers',4,'[{"name":"Membrane","type":"Material"},{"name":"Tapes & primers","type":"Material"}]',null,'cladding'),
+ ('flashing','Flashing & Trims',5,'[{"name":"Flashing","type":"Material"},{"name":"Trims","type":"Material"}]',null,'cladding'),
+ ('insulation','Insulation',6,'[{"name":"Insulation boards","type":"Material"},{"name":"Fasteners","type":"Material"}]',null,'cladding'),
+ ('strapping','Strapping & Subframing',7,'[{"name":"Girts / hat channels","type":"Material"},{"name":"Clips","type":"Material"},{"name":"Fasteners","type":"Material"}]',null,'cladding'),
+ ('shop','Shop Drawings',8,'[{"name":"Shop drawings","type":"Labour"}]',null,'general'),
+ ('pm','Project Management',9,'[{"name":"Project management","type":"Labour"},{"name":"Site visits","type":"Labour"}]',null,'general'),
+ ('access','Access & Equipment',10,'[{"name":"Lift / boom rental","type":"Access"},{"name":"Scaffold","type":"Access"},{"name":"Delivery of equipment","type":"Delivery"}]',null,'general'),
+ ('misc','Miscellaneous Materials & Expenses',11,'[{"name":"Consumables","type":"Material"},{"name":"Disposal bin","type":"Other"},{"name":"Parking / permits","type":"Other"}]',null,'general'),
+ ('install','Installation',12,'[{"name":"Installation labour","type":"Labour"},{"name":"WSIB","type":"Overhead","role":"wsib"}]',null,'general'),
+ ('subtrades','Subcontracted Trades',13,'[{"name":"Subcontractor","type":"Other"}]',null,'general')
+on conflict (id) do nothing;
