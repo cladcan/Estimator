@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!, ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!, ANON = (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!;
 
 /** A Supabase client acting as the signed-in caller (RLS applies), plus their role. */
 export async function caller(req: Request) {

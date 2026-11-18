@@ -9,7 +9,7 @@ Stack: Next.js on Vercel, Supabase (Postgres, auth, realtime). Roles (owner, edi
 2. Supabase → Authentication → Users → Add user: `yourname@hub.cladcan.ca` and a password (tick "auto confirm").
    Then in the SQL Editor: `insert into members (email, role) values ('yourname@hub.cladcan.ca', 'owner');`
 3. Vercel environment variables:
-   - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase → Project Settings → API)
+   - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (Supabase → Project Settings → API)
    - `SUPABASE_SERVICE_ROLE_KEY` (server only, used so the owner can add people from Settings)
    - `MONDAY_API_KEY` (optional, for the monday link)
 4. Sign in with the username only (e.g. `yourname`).
