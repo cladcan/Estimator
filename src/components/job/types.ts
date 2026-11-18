@@ -5,4 +5,5 @@ type H = ReturnType<typeof useJob>;
 export type JobView = {
   d: JobData; calc: NonNullable<H['calc']>; api: H['api']; st: Settings; editable: boolean; mode: 'estimation' | 'project';
   tx: (v: number) => number; openCO: ChangeOrder | null; libButtons: (sec: Section) => ReactNode;
+  foldCmd: { n: number; fold: boolean }; onlyLeft: boolean;
 };

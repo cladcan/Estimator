@@ -7,13 +7,14 @@ import TextInput from '@/components/TextInput';
 import { blankLine } from '@/hooks/useJob';
 import type { JobView } from './types';
 
-export default function SectionCard({ v, sec }: { v: JobView; sec: Section }) {
+export default function SectionCard({ v, sec, num }: { v: JobView; sec: Section; num: number }) {
   const { d, calc, api, st, editable, mode, tx, openCO } = v;
   const [fold, setFold] = useState(false);
   const [phaseTab, setPhaseTab] = useState<string>('all');
   const [showText, setShowText] = useState(false);
   const foldKey = `fold:${d.job.id}:${sec.id}`;
   useEffect(() => { try { setFold(localStorage.getItem(foldKey) === '1'); } catch {} }, [foldKey]);
+  useEffect(() => { if (!v.foldCmd.n) return; setFold(v.foldCmd.fold); try { localStorage.setItem(foldKey, v.foldCmd.fold ? '1' : '0'); } catch {} }, [v.foldCmd, foldKey]);
   const toggleFold = () => { setFold(!fold); try { localStorage.setItem(foldKey, fold ? '0' : '1'); } catch {} };
 
   const project = mode === 'project';
@@ -30,6 +31,7 @@ export default function SectionCard({ v, sec }: { v: JobView; sec: Section }) {
   const secLocked = !!secCO?.issued;
 
   const shownLines = secLines.filter(l => {
+    if (v.onlyLeft && l.kind === 'todo' && l.done) return false;
     if (!project) return !l.proj_only && !l.co_id && !l.phase_id;
     if (phases.length && phaseTab !== 'all') return phaseTab === 'p1' ? !l.phase_id : l.phase_id === phaseTab;
     return !l.phase_id;
@@ -56,6 +58,7 @@ export default function SectionCard({ v, sec }: { v: JobView; sec: Section }) {
     <div className={`card p-0 ${sec.proj_off ? 'opacity-60' : ''}`}>
       <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-slate-50 rounded-t-lg">
         <button className="text-gray-500 w-5" onClick={toggleFold} title={fold ? 'Expand' : 'Collapse'}>{fold ? '▸' : '▾'}</button>
+        <span className="text-gray-400 font-semibold w-6 text-right">{num}.</span>
         <TextInput className="font-semibold max-w-xs" value={sec.name} disabled={!estEditable && !(editable && (sec.proj_only || (sec.co_id && !secLocked)))} onChange={name => api.patchSection(sec.id, { name })} />
         {sec.lib && <span className="pill bg-slate-200 text-slate-700">{sec.lib}</span>}
         {sec.tier && <span className="pill bg-violet-100 text-violet-800">{sec.tier}</span>}
@@ -226,7 +229,7 @@ function TodoRow({ v, l, editable, cols }: { v: JobView; l: Line; editable: bool
     <tr className="border-t"><td className="td" colSpan={cols - 1}><div className="flex items-center gap-2">
       <input type="checkbox" disabled={!editable} checked={l.done} onChange={e => api.patchLine(l.id, { done: e.target.checked })} />
       <TextInput className={l.done ? 'line-through text-gray-400' : ''} value={l.name} disabled={!editable} placeholder="To-do" onChange={name => api.patchLine(l.id, { name })} />
-      <input className="input w-40" type="date" disabled={!editable} value={l.date || ''} onChange={e => api.patchLine(l.id, { date: e.target.value || null })} />
+      <input className={`input w-40 ${!l.done && l.date && l.date < new Date().toISOString().slice(0, 10) ? 'text-red-600 border-red-400' : ''}`} type="date" disabled={!editable} value={l.date || ''} onChange={e => api.patchLine(l.id, { date: e.target.value || null })} />
     </div></td><td className="td text-right">{editable && <button className="text-red-500" onClick={() => api.deleteLine(l.id)}>×</button>}</td></tr>
   );
 }

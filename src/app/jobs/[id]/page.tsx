@@ -30,6 +30,8 @@ export default function JobPage() {
   const [taxIn, setTaxIn] = useState(false);
   const [picker, setPicker] = useState<null | { kind: 'add' } | { kind: 'finish'; sec: Section }>(null);
   const [modal, setModal] = useState<null | 'start' | 'reopen' | 'delete' | 'issue'>(null);
+  const [foldCmd, setFoldCmd] = useState({ n: 0, fold: false });
+  const [onlyLeft, setOnlyLeft] = useState(false);
   const [toast, setToast] = useState<{ msg: string; undo?: () => void } | null>(null);
   const loadLib = () => supabase.from('library').select('*').order('pos').then(({ data }) => setLibrary(data || []));
   useEffect(() => { loadLib(); }, []);
@@ -120,7 +122,8 @@ export default function JobPage() {
     <button className="btn-sm" onClick={() => saveAsLibrary(sec)}>Save as a section button</button>
   </> : null;
 
-  const v: JobView = { d, calc, api, st, editable, mode, tx, openCO, libButtons };
+  const v: JobView = { d, calc, api, st, editable, mode, tx, openCO, libButtons, foldCmd, onlyLeft };
+  const ticked = d.lines.filter(l => l.kind === 'todo' && l.done);
   const visibleLib = library.filter(e => !(hideInstall && INSTALL_KINDS.includes(e.id.toLowerCase())));
   const sections = [...d.sections].sort((a, b) => a.pos - b.pos).filter(s => mode === 'project' || (!s.proj_only && !s.co_id));
   const mondayPhase = started ? 'Won' : job.estimate_no ? 'Quotation / Proposal' : 'Estimation';
@@ -172,7 +175,7 @@ export default function JobPage() {
 
       {mode === 'project' && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          {[['Contract incl. COs', calc.contractTotal], ['Budget (cost)', calc.budget], ['Actual to date', calc.actual], ['Left', calc.budget - calc.actual], ['Margin', calc.contractTotal - calc.actual]].map(([l, val]) => (
+          {[['Contract incl. COs', calc.contractTotal], ['Total budget', calc.budget], ['Actual cost to date', calc.actual], ['Difference (budget − actual)', calc.budget - calc.actual], ['Margin to date', calc.contractTotal - calc.actual]].map(([l, val]) => (
             <div key={l as string} className="card py-2"><div className="text-xs text-gray-500">{l}</div><div className={`text-lg font-semibold ${(val as number) < 0 ? 'text-red-600' : ''}`}>{money(tx(val as number))}</div></div>))}
           {d.cos.filter(c => c.issued).length > 0 && <div className="col-span-full text-xs text-gray-600">
             {d.cos.filter(c => c.issued).map(c => `${coLabel(d.cos, c.id)} (${c.type}${c.type === 'client' ? `, ${money(Number(c.price))}` : ''}, issued ${c.issued})`).join(' · ')}</div>}
@@ -181,7 +184,14 @@ export default function JobPage() {
 
       <div className="grid xl:grid-cols-[1fr_400px] gap-3 items-start">
         <div className="space-y-3">
-          {sections.map(s => <SectionCard key={s.id} v={v} sec={s} />)}
+          <div className="flex flex-wrap gap-2 text-sm">
+            <button className="btn" onClick={() => setFoldCmd(c => ({ n: c.n + 1, fold: true }))}>Close all sections</button>
+            <button className="btn" onClick={() => setFoldCmd(c => ({ n: c.n + 1, fold: false }))}>Open all sections</button>
+            <label className="btn flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={onlyLeft} onChange={e => setOnlyLeft(e.target.checked)} />Show only what&apos;s left</label>
+            {editable && ticked.length > 0 && <button className="btn" onClick={() => { if (confirm(`Untick all ${ticked.length} ticked to-dos?`)) ticked.forEach(l => api.patchLine(l.id, { done: false })); }}>Clear all ticks</button>}
+            {mode === 'project' && <span className="ml-auto self-center text-gray-600">Contract {money(tx(calc.contractTotal))} · margin on budget {money(tx(calc.contractTotal - calc.budget))}{calc.contractTotal ? ` (${((calc.contractTotal - calc.budget) / calc.contractTotal * 100).toFixed(1)}%)` : ''} · on actual {money(tx(calc.contractTotal - calc.actual))}</span>}
+          </div>
+          {sections.map((s, i) => <SectionCard key={s.id} v={v} sec={s} num={i + 1} />)}
           {!sections.length && <div className="card text-gray-500 text-sm">No sections yet. Add one from the buttons below.</div>}
           {editable && (!started || mode === 'project') && (
             <div className="card space-y-2">

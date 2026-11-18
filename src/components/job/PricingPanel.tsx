@@ -37,9 +37,10 @@ export default function PricingPanel({ v }: { v: JobView }) {
       {p.FM ? <div className="text-xs text-gray-500 -mt-1 pl-2">includes {money(p.FM)} fixed section markup</div> : null}
       {row({ label: 'Contingency (T)', val: p.T, ctl: <><NumInput className="w-16" disabled={locked} value={pr.t ?? null} auto={p.t} onChange={t => setPr({ t })} /><span>%</span></> })}
       {row({ label: 'Commission (C)', val: p.C, ctl: <><NumInput className="w-20" disabled={locked} value={pr.c ?? null} onChange={c => setPr({ c })} />{modeSel('cm', 'c', p.P)}</> })}
+      {row({ label: 'Total quoted price', val: p.S0, strong: true })}
       {row({ label: 'Discount (D)', val: -p.D, ctl: <><NumInput className="w-20" disabled={locked} value={pr.d ?? null} onChange={dd => setPr({ d: dd })} />{modeSel('dm', 'd', p.S0)}</> })}
       <div className="flex items-center gap-2 py-2 border-t-2 border-slate-800 font-bold text-base">
-        <span className="flex-1">Total quoted price (Q)</span><span className="w-28 text-right">{money(tx(p.Q))}</span>
+        <span className="flex-1">Price after discount (Q)</span><span className="w-28 text-right">{money(tx(p.Q))}</span>
         <span className="w-20 text-right text-xs font-normal">{p.area ? `${money(p.Q / p.area)}/SF` : ''}</span>
       </div>
       {!p.area && <div className="text-xs text-amber-700">Unit price $/SF: N/A, enter the cladding area.</div>}
