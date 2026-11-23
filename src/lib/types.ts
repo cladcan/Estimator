@@ -42,7 +42,11 @@ export type Line = {
   proj_amount: number; mk: 'Y' | 'N' | null; phase_id: string | null; of_line: string | null; proj_only: boolean; co_id: string | null;
   done: boolean; date: string | null; custom: boolean; cat_id: string | null; tier: string | null; unit: string | null; rate_note: string | null;
 };
-export type Cost = { id: string; job_id: string; line_id: string; section_id: string | null; type: string | null; pos: number; name: string; qty: number | null; rate: number | null; amount: number; date: string | null };
+export type Cost = { id: string; job_id: string; line_id: string; section_id: string | null; type: string | null; pos: number; name: string; qty: number | null; rate: number | null; amount: number; date: string | null;
+  /** true = qty × rate was typed as printed on the receipt, tax included; amount is then the pre-tax part. */
+  tax_in: boolean;
+  /** Tax paid on this cost, kept apart so actuals compare pre-tax against the pre-tax budget. */
+  tax: number };
 
 export type LibItem = { name: string; type: LineType; role?: LineRole; rate?: number | null; qty?: number | null; unit?: string | null };
 export type LibPreset = { id: string; name: string; items: LibItem[]; sheetSqft?: number | null; ctext?: string | null };

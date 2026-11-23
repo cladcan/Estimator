@@ -105,6 +105,17 @@ export function jobArea(job: Pick<Job, 'pr'>, sections: Section[], st: Settings)
 
 export const taxRate = (job: Pick<Job, 'tax'>, st: Settings) => (job.tax !== null && job.tax !== undefined && job.tax >= 0 && job.tax < 1 ? job.tax : st.tax_pct / 100);
 
+/**
+ * Split a typed cost into the pre-tax amount (what counts as actual cost) and the tax.
+ * When taxIn is true, qty × rate is the tax-included total from the receipt.
+ */
+export function costSplit(qty: unknown, rate: unknown, taxIn: boolean, taxPct: number): { amount: number; tax: number } {
+  const gross = r2(z(qty) * z(rate));
+  if (!taxIn || !(taxPct > 0)) return { amount: gross, tax: 0 };
+  const amount = r2(gross / (1 + taxPct / 100));
+  return { amount, tax: r2(gross - amount) };
+}
+
 export type Pricing = { A: number; B: number; P: number; FM: number; U: number; T: number; C: number; S0: number; D: number; Q: number; area: number; autoArea: number; m: number; t: number; c: number; d: number };
 
 /** The pricing panel. Uses estimate amounts (est side) of estimate lines. */

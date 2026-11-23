@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { coLabel, fmtN, isSubtrade, lineMk, money, r2 } from '@/lib/calc';
+import { coLabel, fmtN, isSubtrade, lineMk, money, r2, costSplit } from '@/lib/calc';
 import { LINE_ROLES, LINE_TYPES, type Line, type Section } from '@/lib/types';
 import NumInput from '@/components/NumInput';
 import TextInput from '@/components/TextInput';
@@ -205,18 +205,27 @@ function LineRow({ v, l, sec, editable, estEditable, phaseAll, jobArea }: { v: J
     </tr>
     {project && open && (
       <tr className="bg-slate-50"><td colSpan={cols} className="px-8 py-2">
-        <div className="text-xs text-gray-500 mb-1">Cost breakdown (added on top of the line&apos;s own actual)</div>
-        <table className="w-full max-w-3xl"><tbody>
-          {costs.map(c => (
+        <div className="text-xs text-gray-500 mb-1">Cost breakdown (added on top of the line&apos;s own actual). Tick &ldquo;incl. HST&rdquo; when the qty × rate you type is the receipt total with tax; only the pre-tax part counts against the budget.</div>
+        <table className="w-full max-w-4xl"><tbody>
+          {costs.length > 0 && <tr className="text-[10px] uppercase text-gray-400"><td className="px-2">Invoice / description</td><td className="px-2">Qty</td><td className="px-2">Rate</td><td className="px-2">Tax</td><td className="px-2 text-right">Pre-tax</td><td className="px-2">Date</td><td /></tr>}
+          {costs.map(c => {
+            const split = (p: { qty?: number | null; rate?: number | null; tax_in?: boolean }) => {
+              const qty = p.qty !== undefined ? p.qty : c.qty, rate = p.rate !== undefined ? p.rate : c.rate, tax_in = p.tax_in ?? c.tax_in;
+              return { ...p, ...costSplit(qty, rate, tax_in, st.tax_pct) };
+            };
+            return (
             <tr key={c.id}>
               <td className="td"><TextInput value={c.name} disabled={!editable} placeholder="Invoice / description" onChange={name => api.patchCost(c.id, { name })} /></td>
-              <td className="td w-24"><NumInput value={c.qty} disabled={!editable} placeholder="qty" onChange={qty => api.patchCost(c.id, { qty, amount: r2(Number(qty || 0) * Number(c.rate || 0)) })} /></td>
-              <td className="td w-24"><NumInput value={c.rate} disabled={!editable} placeholder="rate" onChange={rate => api.patchCost(c.id, { rate, amount: r2(Number(c.qty || 0) * Number(rate || 0)) })} /></td>
-              <td className="td w-28 text-right">{money(tx(Number(c.amount)))}</td>
+              <td className="td w-24"><NumInput value={c.qty} disabled={!editable} placeholder="qty" onChange={qty => api.patchCost(c.id, split({ qty }))} /></td>
+              <td className="td w-24"><NumInput value={c.rate} disabled={!editable} placeholder="rate" onChange={rate => api.patchCost(c.id, split({ rate }))} /></td>
+              <td className="td w-28 whitespace-nowrap"><label className="flex items-center gap-1 text-xs" title={`On: the amount typed includes ${st.tax_pct}% HST, which is taken out. Off: the amount typed is already before tax.`}>
+                <input type="checkbox" disabled={!editable} checked={!!c.tax_in} onChange={ev => api.patchCost(c.id, split({ tax_in: ev.target.checked }))} />incl. HST</label></td>
+              <td className="td w-32 text-right">{money(tx(Number(c.amount)))}{Number(c.tax) > 0 && <div className="text-[10px] text-gray-500">+ {money(Number(c.tax))} HST</div>}</td>
               <td className="td w-36"><input className="input" type="date" disabled={!editable} value={c.date || ''} onChange={ev => api.patchCost(c.id, { date: ev.target.value || null })} /></td>
               <td className="td w-6">{editable && <button className="text-red-500" onClick={() => api.deleteCost(c.id)}>×</button>}</td>
-            </tr>))}
+            </tr>); })}
         </tbody></table>
+        {costs.some(c => Number(c.tax) > 0) && <div className="text-xs text-gray-500 mt-1">HST paid on these costs: {money(costs.reduce((a, c) => a + Number(c.tax || 0), 0))} (not counted in actual)</div>}
         {editable && <button className="btn-sm mt-1" onClick={() => api.addCost(l)}>+ Cost</button>}
       </td></tr>
     )}
