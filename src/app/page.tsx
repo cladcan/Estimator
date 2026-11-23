@@ -15,7 +15,7 @@ const DAY = 86400000;
 const pctStr = (v: number) => (Number.isFinite(v) ? `${v.toFixed(0)}%` : '–');
 
 export default function Home() {
-  const { canEdit, isOwner } = useApp();
+  const { can, isOwner } = useApp(); const canEdit = can('jobs', 'edit');
   const router = useRouter();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [cats, setCats] = useState<Cat[]>([]);
