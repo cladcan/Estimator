@@ -201,6 +201,7 @@ export default function JobPage() {
               <button className="btn text-red-700" onClick={() => confirm('Discard this open change order and everything on it?') && api.deleteCO(openCO.id)}>Discard</button>
             </>}
           </div>
+          {started && <label className="flex items-center gap-2 text-sm text-[var(--ink2)]">Contract price<NumInput className="w-36" value={job.contract} disabled={!editable} onChange={v => api.patchJob({ contract: v ?? 0 })} />{!Number(job.contract) && <span className="text-[var(--bad)]">not set</span>}</label>}
           {started && <div className="text-xs text-[var(--muted)]">Started {new Date(job.started!).toLocaleDateString('en-CA')} by {job.started_by}{d.cos.some(c => c.issued) ? ' · ' + d.cos.filter(c => c.issued).map(c => `${coLabel(d.cos, c.id)} ${c.type}${c.type === 'client' ? ' ' + money(Number(c.price)) : ''}`).join(' · ') : ''}</div>}
         </div>
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">

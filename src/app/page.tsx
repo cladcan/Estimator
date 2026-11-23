@@ -118,6 +118,9 @@ function snapshot(all: Row[], dates: Map<string, { created: string | null; updat
   const est = all.filter(r => !r.started), proj = all.filter(r => r.started);
   const sum = (rs: Row[], f: (r: Row) => number) => rs.reduce((a, r) => a + (Number(f(r)) || 0), 0);
   const contract = sum(proj, r => r.contract_total), budget = sum(proj, r => r.budget), actual = sum(proj, r => r.actual);
+  // Profit only counts projects that have a contract price; a $0 contract would show its whole budget as a loss.
+  const priced = proj.filter(r => Number(r.contract_total) > 0), unpriced = proj.length - priced.length;
+  const pContract = sum(priced, r => r.contract_total), pBudget = sum(priced, r => r.budget);
   const quotedOpen = sum(est, r => r.quoted);
   const stale = est.filter(r => { const u = dates.get(r.id)?.updated; return u ? now - +new Date(u) > 30 * DAY : false; });
   const over = proj.filter(r => Number(r.budget) > 0 && Number(r.actual) > Number(r.budget));
@@ -127,7 +130,7 @@ function snapshot(all: Row[], dates: Map<string, { created: string | null; updat
     estCount: est.length, projCount: proj.length, quotedOpen, avgQuote: est.length ? quotedOpen / est.length : 0, staleCount: stale.length,
     winRate: all.length ? proj.length / all.length * 100 : NaN,
     contract, budget, actual, left: budget - actual, spentPct: budget ? actual / budget * 100 : NaN,
-    profit: contract - budget, marginPct: contract ? (contract - budget) / contract * 100 : NaN, avgProject: proj.length ? contract / proj.length : 0,
+    profit: pContract - pBudget, marginPct: pContract ? (pContract - pBudget) / pContract * 100 : NaN, unpriced, avgProject: proj.length ? contract / proj.length : 0,
     earned, overCount: over.length,
     newEst: all.filter(r => inMonth(dates.get(r.id)?.created)).length, startedMonth: proj.filter(r => inMonth(r.started)).length,
     wonMonth: sum(proj.filter(r => inMonth(r.started)), r => r.contract_total),
@@ -146,7 +149,7 @@ function Snapshot({ s }: { s: Snap }) {
     { title: 'What we are achieving', tiles: [
       { l: 'Projects running', v: String(s.projCount), sub: s.projCount ? `avg ${money(s.avgProject, 0)} contract` : undefined },
       { l: 'Contract value (won)', v: money(s.contract, 0), sub: 'including issued client change orders' },
-      { l: 'Expected profit', v: money(s.profit, 0), sub: `${pctStr(s.marginPct)} margin on budget`, tone: s.profit < 0 ? 'bad' : 'ok' },
+      { l: 'Expected profit', v: money(s.profit, 0), sub: `${pctStr(s.marginPct)} margin on budget${s.unpriced ? ` · ${s.unpriced} project${s.unpriced > 1 ? 's' : ''} with no contract price left out` : ''}`, tone: s.profit < 0 ? 'bad' : 'ok' },
       { l: 'Earned to date', v: money(s.earned, 0), sub: 'contract × % of budget spent' },
     ] },
     { title: 'What we are spending', tiles: [
