@@ -26,7 +26,8 @@ const blankSection = (p: Partial<Section> & Pick<Section, 'job_id' | 'name'>): S
 export default function JobPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { settings: st, canEdit, email } = useApp();
+  const { settings: st, can, email } = useApp();
+  const canEdit = can('jobs', 'edit'), canEditLib = can('library', 'edit');
   const { d, calc, status, api } = useJob(id, st);
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
   const [viewMode, setViewMode] = useState<'estimation' | 'project' | null>(null);
@@ -130,7 +131,7 @@ export default function JobPage() {
 
   const libButtons = (sec: Section) => editable && !started ? <>
     {d.lines.some(l => l.section_id === sec.id && l.cat_id) && <button className="btn-sm" onClick={() => setPicker({ kind: 'finish', sec })}>Change finish</button>}
-    <button className="btn-sm" onClick={() => saveAsLibrary(sec)}>Save as a section button</button>
+    {canEditLib && <button className="btn-sm" onClick={() => saveAsLibrary(sec)}>Save as a section button</button>}
   </> : null;
 
   const v: JobView = { d, calc, api, st, editable, mode, tx, openCO, libButtons, foldCmd, onlyLeft };
@@ -217,7 +218,7 @@ export default function JobPage() {
         <div className="rounded-lg border border-[var(--line)] bg-[var(--sunk)] p-4 space-y-2">
           <div className="label">Add a section to this job{started ? (openCO ? ` · goes on ${coLabel(d.cos, openCO.id)}` : ' · not in budget') : ''}</div>
           <div className="flex flex-wrap gap-2">
-            {visibleLib.map(e => <LibraryMenu key={e.id} e={e} onAdd={pid => addFromLibrary(e, pid)} onNewOption={name => addNewOption(e, name)} />)}
+            {visibleLib.map(e => <LibraryMenu key={e.id} e={e} onAdd={pid => addFromLibrary(e, pid)} onNewOption={canEditLib ? name => addNewOption(e, name) : undefined} />)}
             <button className="chip" onClick={() => setPicker({ kind: 'add' })}>+ From catalogue</button>
             <button className="chip border-dashed! text-[var(--ink2)]!" onClick={addBlank}>+ Blank section</button>
             <Link className="chip border-dashed! text-[var(--muted)]!" href="/library">Arrange / remove</Link>

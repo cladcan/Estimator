@@ -30,7 +30,7 @@ function ItemsEditor({ items, onChange, disabled }: { items: LibItem[]; onChange
 }
 
 export default function LibraryPage() {
-  const { canEdit } = useApp();
+  const { can } = useApp(); const canEdit = can('library', 'edit');
   const [lib, setLib] = useState<LibraryEntry[]>([]); const [open, setOpen] = useState<string | null>(null); const [msg, setMsg] = useState('');
   const load = () => supabase.from('library').select('*').order('pos').then(({ data }) => setLib(data || []));
   useEffect(() => { load(); }, []);

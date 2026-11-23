@@ -12,7 +12,7 @@ type Named = { id: string; name: string };
 type Log = { id: number; at: string; by_email: string; item_id: string; change: string };
 
 export default function CataloguePage() {
-  const { canEdit, email } = useApp();
+  const { can, email } = useApp(); const canEdit = can('catalogue', 'edit');
   const [items, setItems] = useState<CatalogItem[]>([]); const [brands, setBrands] = useState<Named[]>([]); const [sups, setSups] = useState<Named[]>([]); const [log, setLog] = useState<Log[]>([]);
   const [q, setQ] = useState(''); const [open, setOpen] = useState<string | null>(null); const [tab, setTab] = useState<'products' | 'lists' | 'log'>('products');
   const load = async () => {

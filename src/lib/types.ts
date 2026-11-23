@@ -1,4 +1,16 @@
 export type Role = 'owner' | 'editor' | 'viewer';
+export type Area = 'jobs' | 'catalogue' | 'library';
+export type Level = 'edit' | 'view' | 'none';
+export type Access = Record<Area, Level>;
+export const AREAS: { id: Area; label: string }[] = [{ id: 'jobs', label: 'Jobs' }, { id: 'catalogue', label: 'Catalogue' }, { id: 'library', label: 'Library' }];
+export const LEVELS: { id: Level; label: string }[] = [{ id: 'edit', label: 'Can edit' }, { id: 'view', label: 'View only' }, { id: 'none', label: 'No access' }];
+/** What a member can do: admins (owner) get everything; otherwise their own access, falling back to the old role. */
+export function accessOf(role: Role, access?: Partial<Access> | null): Access {
+  const base: Level = role === 'owner' || role === 'editor' ? 'edit' : 'view';
+  const out = {} as Access;
+  for (const a of AREAS) out[a.id] = role === 'owner' ? 'edit' : (access?.[a.id] ?? base);
+  return out;
+}
 export type LineType = 'Material' | 'Labour' | 'Delivery' | 'Access' | 'Overhead' | 'Other';
 export const LINE_TYPES: LineType[] = ['Material', 'Labour', 'Delivery', 'Access', 'Overhead', 'Other'];
 export type LineRole = 'fab' | 'cutbend' | 'sheets' | 'wastage' | 'wsib' | null;
