@@ -68,3 +68,9 @@ export const SCOPES: { id: string; label: string }[] = [
   { id: 'design', label: 'Design only' },
 ];
 export const INSTALL_KINDS = ['install', 'installation', 'access', 'subtrades'];
+
+export type Attachment = {
+  id: string; job_id: string; cost_id: string | null; path: string; name: string; mime: string | null; size: number | null;
+  supplier: string | null; invoice_no: string | null; date: string | null; amount: number | null; note: string | null; source: string | null;
+  created_at: string; created_by: string | null;
+};
