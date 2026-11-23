@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { calcSection, pricing, evalExpr, jobArea } from '../src/lib/calc';
+import { calcSection, pricing, evalExpr, jobArea, costSplit } from '../src/lib/calc';
 import { DEFAULT_SETTINGS as st, type Line, type Section, type Job } from '../src/lib/types';
 
 const S = (p: Partial<Section>): Section => ({ id: 's', job_id: 'j', pos: 0, name: 'x', lib: null, preset: null, area: null, sheet_sqft: null, mk: null, fmk: null, fmkm: 'amt', fin: false, ctext: null, wgrp: null, tier: null, proj_only: false, proj_off: false, co_id: null, act_override: null, ...p });
@@ -56,3 +56,11 @@ test('area override', () => {
   assert.equal(jobArea({ pr: { sf: '1000' } }, sections, st).area, 1000);
 });
 test('expressions', () => { assert.equal(evalExpr('10+5'), 15); assert.equal(evalExpr('2*(3+1)'), 8); assert.equal(evalExpr(''), null); assert.equal(evalExpr('abc'), null); });
+test('cost tax split', () => {
+  assert.deepEqual(costSplit(1, 113, true, 13), { amount: 100, tax: 13 });
+  assert.deepEqual(costSplit(2, 56.5, true, 13), { amount: 100, tax: 13 });
+  assert.deepEqual(costSplit(1, 113, false, 13), { amount: 113, tax: 0 });
+  assert.deepEqual(costSplit(1, 113, true, 0), { amount: 113, tax: 0 });
+  assert.deepEqual(costSplit(null, 50, true, 13), { amount: 0, tax: 0 });
+  const s = costSplit(1, 99.99, true, 13); assert.equal(Math.round((s.amount + s.tax) * 100), 9999);
+});

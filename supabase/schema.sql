@@ -187,8 +187,14 @@ create table if not exists costs (
   pos numeric not null default 0,
   name text not null default '',
   qty numeric, rate numeric, amount numeric not null default 0,
-  date date
+  date date,
+  -- amount is always pre-tax (it is what counts as actual cost). When tax_in is true the
+  -- qty × rate typed was the receipt total with tax, and the tax part is kept in tax.
+  tax_in boolean not null default false,
+  tax numeric not null default 0
 );
+alter table costs add column if not exists tax_in boolean not null default false;
+alter table costs add column if not exists tax numeric not null default 0;
 create index if not exists costs_job on costs(job_id);
 
 -- ───────── Invoices and receipts (files live in the private "invoices" storage bucket) ─────────

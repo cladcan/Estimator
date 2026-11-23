@@ -140,7 +140,7 @@ export function useJob(id: string, st: Settings) {
     addLine: (l: Line) => { set(x => ({ ...x, lines: [...x.lines, l] })); return run(() => supabase.from('lines').insert(l)); },
     deleteLine: (lid: string) => { set(x => ({ ...x, lines: x.lines.filter(l => l.id !== lid && l.of_line !== lid), costs: x.costs.filter(c => c.line_id !== lid) })); return run(() => supabase.from('lines').delete().eq('id', lid)); },
     addCost: (l: Line) => {
-      const c: Cost = { id: newId('c'), job_id: id, line_id: l.id, section_id: l.section_id, type: l.type, pos: Date.now(), name: '', qty: null, rate: null, amount: 0, date: new Date().toISOString().slice(0, 10) };
+      const c: Cost = { id: newId('c'), job_id: id, line_id: l.id, section_id: l.section_id, type: l.type, pos: Date.now(), name: '', qty: null, rate: null, amount: 0, date: new Date().toISOString().slice(0, 10), tax_in: true, tax: 0 };
       set(x => ({ ...x, costs: [...x.costs, c] })); return run(() => supabase.from('costs').insert(c));
     },
     deleteCost: (cid: string) => { set(x => ({ ...x, costs: x.costs.filter(c => c.id !== cid) })); return run(() => supabase.from('costs').delete().eq('id', cid)); },
