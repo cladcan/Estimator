@@ -1,7 +1,7 @@
 -- CladCan Estimator database. Paste into the Supabase SQL editor and run.
 -- Safe to run again: it only creates what is missing and replaces functions/policies.
 
-create extension if not exists pgcrypto;
+create extension if not exists pgcrypto with schema extensions;  -- Supabase keeps extensions in the "extensions" schema
 
 -- ───────── Members and roles ─────────
 create table if not exists members (
@@ -210,7 +210,7 @@ create trigger cost_proj after insert or update or delete on costs for each row 
 
 -- ───────── Start / reopen project (server side, PIN hashed) ─────────
 create or replace function start_project(p_job text, p_pin text, p_contract numeric) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not can_edit() then raise exception 'Not allowed'; end if;
   if coalesce(length(p_pin),0) < 4 then raise exception 'PIN must be at least 4 characters'; end if;
@@ -223,7 +223,7 @@ begin
 end $$;
 
 create or replace function reopen_estimate(p_job text, p_pin text) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare j jobs;
 begin
   if not can_edit() then raise exception 'Not allowed'; end if;
@@ -240,7 +240,7 @@ begin
 end $$;
 
 -- Owner-only: set a job's PIN from an imported plain-text PIN.
-create or replace function import_pin(p_job text, p_pin text) returns void language plpgsql security definer set search_path = public as $$
+create or replace function import_pin(p_job text, p_pin text) returns void language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not is_owner() then raise exception 'Not allowed'; end if;
   update jobs set pin_hash = crypt(p_pin, gen_salt('bf')) where id = p_job;
