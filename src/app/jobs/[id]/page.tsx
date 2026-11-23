@@ -10,6 +10,7 @@ import { useJob, blankLine } from '@/hooks/useJob';
 import SectionCard from '@/components/job/SectionCard';
 import PricingPanel from '@/components/job/PricingPanel';
 import WavePanel from '@/components/job/WavePanel';
+import InvoicesPanel from '@/components/job/InvoicesPanel';
 import CatalogPicker from '@/components/job/CatalogPicker';
 import LibraryMenu from '@/components/job/LibraryMenu';
 import Link from 'next/link';
@@ -226,6 +227,7 @@ export default function JobPage() {
 
       <PricingPanel v={v} />
       <WavePanel v={v} library={library} />
+      <InvoicesPanel jobId={job.id} costs={d.costs} lines={d.lines} editable={editable} />
 
       <div className="space-y-3">
         {sections.map((s, i) => <SectionCard key={s.id} v={v} sec={s} num={i + 1} />)}
