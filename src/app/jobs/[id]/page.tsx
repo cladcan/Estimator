@@ -162,7 +162,7 @@ export default function JobPage() {
       <div className="flex flex-wrap items-start gap-3">
         <div className="mr-auto min-w-0">
           <div className="label">Job checklist and cost tracker · {scopeLabel}</div>
-          <TextInput className="display text-3xl font-semibold border-transparent bg-transparent px-0 min-w-[20rem]" value={job.name} disabled={!editable} onChange={name => api.patchJob({ name })} />
+          <JobName name={job.name} editable={editable} started={started} onRename={name => api.patchJob({ name })} />
           <div className="flex flex-wrap items-center gap-3 mt-1 text-sm">
             <span className="px-2 py-0.5 bg-[var(--sunk)] rounded display font-semibold">{job.ref}</span>
             <label className="flex items-center gap-2 text-[var(--ink2)]">Client<TextInput className="w-44" value={job.client} disabled={!editable} onChange={client => api.patchJob({ client })} /></label>
@@ -237,6 +237,24 @@ export default function JobPage() {
       {picker && <CatalogPicker title={picker.kind === 'finish' ? 'Pick the new finish (any product, the tier is what counts)' : 'Add from catalogue'}
         onClose={() => setPicker(null)} onPick={(c, tier, all) => picker.kind === 'finish' ? changeFinish(picker.sec, c, tier, all) : addFromCatalog(c, tier, all)} />}
       {modal && <Modal kind={modal} onClose={() => setModal(null)} job={job} quoted={calc.pr.Q} api={api} openCOId={openCO?.id} coName={openCO ? coLabel(d.cos, openCO.id) : ''} onDeleted={() => router.push('/')} />}
+    </div>
+  );
+}
+
+function JobName({ name, editable, started, onRename }: { name: string; editable: boolean; started: boolean; onRename: (name: string) => void }) {
+  const [editing, setEditing] = useState(false); const [t, setT] = useState(name);
+  const save = () => { const n = t.trim(); if (n && n !== name) onRename(n); setEditing(false); };
+  if (editing) return (
+    <form className="flex flex-wrap items-center gap-2" onSubmit={e => { e.preventDefault(); save(); }}>
+      <input className="input display text-3xl font-semibold min-w-[20rem] max-w-2xl" aria-label="Job name" autoFocus value={t} onChange={e => setT(e.target.value)} onFocus={e => e.target.select()} onKeyDown={e => { if (e.key === 'Escape') setEditing(false); }} />
+      <button type="submit" className="btn-primary" disabled={!t.trim()}>Save</button>
+      <button type="button" className="btn" onClick={() => setEditing(false)}>Cancel</button>
+    </form>
+  );
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <h1 className="display text-3xl font-semibold">{name}</h1>
+      {editable && <button className="btn-sm" title={started ? 'Rename this project (no PIN needed: the budget stays locked)' : 'Rename this estimate'} onClick={() => { setT(name); setEditing(true); }}>Rename</button>}
     </div>
   );
 }

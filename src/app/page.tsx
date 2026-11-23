@@ -25,6 +25,7 @@ export default function Home() {
   const [msg, setMsg] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [toDelete, setToDelete] = useState<Row[] | null>(null);
+  const [toRename, setToRename] = useState<Row | null>(null);
 
   const load = async () => {
     const [{ data: r, error }, { data: c }, { data: d }] = await Promise.all([
@@ -83,7 +84,7 @@ export default function Home() {
         <table className="w-full">
           <thead className="border-b"><tr>
             {canEdit && <th className="th w-8">{pickable.length > 0 && <input type="checkbox" aria-label="Select all estimates" checked={pickable.every(r => picked.has(r.id))} onChange={e => setPicked(e.target.checked ? new Set(pickable.map(r => r.id)) : new Set())} />}</th>}
-            <th className="th">Job</th><th className="th">Stage</th><th className="th text-right">Price</th><th className="th text-right">Budget</th><th className="th text-right">Actual</th><th className="th w-40">Spent</th><th className="th text-right">Left</th>{canEdit && <th className="th w-10" />}
+            <th className="th">Job</th><th className="th">Stage</th><th className="th text-right">Price</th><th className="th text-right">Budget</th><th className="th text-right">Actual</th><th className="th w-40">Spent</th><th className="th text-right">Left</th>{canEdit && <th className="th w-32" />}
           </tr></thead>
           <tbody>
             {shown.map(r => { const b = Number(r.budget), a = Number(r.actual), pct = b ? a / b * 100 : 0; return (
@@ -96,13 +97,16 @@ export default function Home() {
                 <td className="td text-right">{r.started ? money(a, 0) : '—'}</td>
                 <td className="td">{r.started && <div className="flex items-center gap-2"><div className="flex-1 h-2 bg-gray-200 rounded"><div className={`h-2 rounded ${pct > 100 ? 'bg-red-500' : pct >= 90 ? 'bg-amber-500' : 'bg-blue-600'}`} style={{ width: `${Math.min(100, pct)}%` }} /></div><span className="text-xs w-10 text-right">{pct.toFixed(0)}%</span></div>}</td>
                 <td className={`td text-right ${b - a < 0 ? 'text-red-600' : ''}`}>{r.started ? (b - a < 0 ? `${money(a - b, 0)} over` : money(b - a, 0)) : ''}</td>
-                {canEdit && <td className="td text-right" onClick={e => e.stopPropagation()}>{!r.started && <button className="btn-sm text-red-700" title={`Delete ${r.name}`} aria-label={`Delete ${r.name}`} onClick={() => setToDelete([r])}>Delete</button>}</td>}
+                {canEdit && <td className="td text-right whitespace-nowrap space-x-1" onClick={e => e.stopPropagation()}>
+                  <button className="btn-sm" title={`Rename ${r.name}`} aria-label={`Rename ${r.name}`} onClick={() => setToRename(r)}>Rename</button>
+                  {!r.started && <button className="btn-sm text-red-700" title={`Delete ${r.name}`} aria-label={`Delete ${r.name}`} onClick={() => setToDelete([r])}>Delete</button>}</td>}
               </tr>); })}
             {rows && !shown.length && <tr><td className="td p-6 text-gray-500" colSpan={9}>No jobs here yet.</td></tr>}
           </tbody>
         </table>
       </div>
       {showNew && <NewEstimate onClose={() => setShowNew(false)} onCreated={id => router.push(`/jobs/${id}`)} />}
+      {toRename && <RenameJob row={toRename} onClose={() => setToRename(null)} onDone={name => { setRows(rs => rs && rs.map(x => x.id === toRename.id ? { ...x, name } : x)); setToRename(null); }} />}
       {toDelete && <DeleteEstimates rows={toDelete} onClose={() => setToDelete(null)} onDone={() => { setToDelete(null); setPicked(new Set()); load(); }} />}
     </div>
   );
@@ -166,6 +170,32 @@ function Snapshot({ s }: { s: Snap }) {
               </div>))}
           </div>
         </div>))}
+    </div>
+  );
+}
+
+function RenameJob({ row, onClose, onDone }: { row: Row; onClose: () => void; onDone: (name: string) => void }) {
+  const { email } = useApp();
+  const [name, setName] = useState(row.name); const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
+  const clean = name.trim();
+  const go = async () => {
+    if (!clean) return setErr('The name can\'t be empty');
+    if (clean === row.name) return onClose();
+    setBusy(true); setErr('');
+    const { error } = await supabase.from('jobs').update({ name: clean, updated_at: new Date().toISOString(), updated_by: email || null }).eq('id', row.id);
+    setBusy(false); if (error) return setErr(error.message);
+    onDone(clean);
+  };
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-start justify-center p-4 z-50" onClick={onClose}>
+      <form className="bg-white rounded-lg shadow-xl w-full max-w-md p-5 space-y-3 mt-20" onClick={e => e.stopPropagation()} onSubmit={e => { e.preventDefault(); go(); }}>
+        <h2 className="text-lg font-semibold">Rename {row.started ? 'project' : 'estimate'}</h2>
+        <label className="text-sm block">Name<input className="input" autoFocus value={name} onChange={e => setName(e.target.value)} onFocus={e => e.target.select()} /></label>
+        {row.ref && <p className="text-xs text-gray-500">The number {row.ref} stays the same.{row.started ? ' No PIN is needed: only the name changes, not the budget.' : ''}</p>}
+        {err && <p className="text-sm text-red-600">{err}</p>}
+        <div className="flex justify-end gap-2"><button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn-primary" disabled={busy || !clean}>{busy ? 'Saving…' : 'Rename'}</button></div>
+      </form>
     </div>
   );
 }
