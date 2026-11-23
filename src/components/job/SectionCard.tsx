@@ -59,7 +59,7 @@ export default function SectionCard({ v, sec, num }: { v: JobView; sec: Section;
       <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-slate-50 rounded-t-lg">
         <button className="text-gray-500 w-5" onClick={toggleFold} title={fold ? 'Expand' : 'Collapse'}>{fold ? '▸' : '▾'}</button>
         <span className="text-gray-400 font-semibold w-6 text-right">{num}.</span>
-        <TextInput className="font-semibold max-w-xs" value={sec.name} disabled={!estEditable && !(editable && (sec.proj_only || (sec.co_id && !secLocked)))} onChange={name => api.patchSection(sec.id, { name })} />
+        <TextInput className="font-semibold max-w-xs" value={sec.name} disabled={!editable} onChange={name => api.patchSection(sec.id, { name })} />
         {sec.lib && <span className="pill bg-slate-200 text-slate-700">{sec.lib}</span>}
         {sec.tier && <span className="pill bg-violet-100 text-violet-800">{sec.tier}</span>}
         {sec.proj_only && <span className="pill bg-orange-100 text-orange-800">Not in budget</span>}
@@ -170,7 +170,7 @@ function LineRow({ v, l, sec, editable, estEditable, phaseAll, jobArea }: { v: J
     <tr className={`border-t ${l.of_line ? 'bg-slate-50' : ''}`}>
       <td className="td"><div className="flex items-center gap-1">
         {project && <button className="text-xs text-gray-400 w-4" onClick={() => setOpen(!open)} title="Cost breakdown">{open ? '▾' : '▸'}{costs.length ? '' : ''}</button>}
-        <TextInput value={l.name} disabled={!(estEditable || (editable && (l.proj_only || isCO)))} onChange={name => api.patchLine(l.id, { name })} />
+        <TextInput value={l.name} disabled={!v.editable} onChange={name => api.patchLine(l.id, { name })} />
         {notInBudget && <span className="pill bg-orange-100 text-orange-800">Not in budget</span>}
         {l.co_id && <span className="pill bg-indigo-100 text-indigo-800">{coLabel(d.cos, l.co_id)}</span>}
         {costs.length > 0 && <span className="pill bg-slate-200">{costs.length} cost{costs.length > 1 ? 's' : ''}</span>}
