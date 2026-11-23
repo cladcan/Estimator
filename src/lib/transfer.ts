@@ -2,8 +2,8 @@
 import { supabase } from './supabase';
 import { convertOldHub } from './hubConvert';
 
-const TABLES = ['settings', 'library', 'brands', 'suppliers', 'catalog', 'catalog_log', 'leads', 'jobs', 'change_orders', 'sections', 'phases', 'lines', 'costs'] as const;
-const ORDER = ['library', 'brands', 'suppliers', 'catalog', 'leads', 'jobs', 'change_orders', 'sections', 'phases', 'lines', 'costs'] as const;
+const TABLES = ['settings', 'library', 'brands', 'suppliers', 'catalog', 'catalog_log', 'leads', 'jobs', 'change_orders', 'sections', 'phases', 'lines', 'costs', 'attachments'] as const;
+const ORDER = ['library', 'brands', 'suppliers', 'catalog', 'leads', 'jobs', 'change_orders', 'sections', 'phases', 'lines', 'costs', 'attachments'] as const;
 
 async function fetchAll(table: string) {
   const out: unknown[] = [];

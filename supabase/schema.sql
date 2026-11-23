@@ -1,7 +1,7 @@
 -- CladCan Estimator database. Paste into the Supabase SQL editor and run.
 -- Safe to run again: it only creates what is missing and replaces functions/policies.
 
-create extension if not exists pgcrypto;
+create extension if not exists pgcrypto with schema extensions;  -- Supabase keeps extensions in the "extensions" schema
 
 -- ───────── Members and roles ─────────
 create table if not exists members (
@@ -191,6 +191,20 @@ create table if not exists costs (
 );
 create index if not exists costs_job on costs(job_id);
 
+-- ───────── Invoices and receipts (files live in the private "invoices" storage bucket) ─────────
+create table if not exists attachments (
+  id text primary key,
+  job_id text not null references jobs(id) on delete cascade,
+  cost_id text references costs(id) on delete set null,   -- the cost entry this invoice backs up, if any
+  path text not null unique,                               -- object path in the "invoices" bucket: <job_id>/<id>-<file name>
+  name text not null,
+  mime text, size bigint,
+  supplier text, invoice_no text, date date, amount numeric, note text,
+  source text,                                             -- e.g. 'upload' or 'purchases:<purchase id>'
+  created_at timestamptz default now(), created_by text default (auth.jwt() ->> 'email')
+);
+create index if not exists attachments_job on attachments(job_id);
+
 -- Keep lines.proj_amount = act_amount + its breakdown costs.
 create or replace function refresh_proj_amount(p_line text) returns void language sql security definer set search_path = public as $$
   update lines l set proj_amount = l.act_amount + coalesce((select sum(amount) from costs c where c.line_id = l.id), 0) where l.id = p_line
@@ -210,7 +224,7 @@ create trigger cost_proj after insert or update or delete on costs for each row 
 
 -- ───────── Start / reopen project (server side, PIN hashed) ─────────
 create or replace function start_project(p_job text, p_pin text, p_contract numeric) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not can_edit() then raise exception 'Not allowed'; end if;
   if coalesce(length(p_pin),0) < 4 then raise exception 'PIN must be at least 4 characters'; end if;
@@ -223,7 +237,7 @@ begin
 end $$;
 
 create or replace function reopen_estimate(p_job text, p_pin text) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare j jobs;
 begin
   if not can_edit() then raise exception 'Not allowed'; end if;
@@ -240,7 +254,7 @@ begin
 end $$;
 
 -- Owner-only: set a job's PIN from an imported plain-text PIN.
-create or replace function import_pin(p_job text, p_pin text) returns void language plpgsql security definer set search_path = public as $$
+create or replace function import_pin(p_job text, p_pin text) returns void language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not is_owner() then raise exception 'Not allowed'; end if;
   update jobs set pin_hash = crypt(p_pin, gen_salt('bf')) where id = p_job;
@@ -278,7 +292,7 @@ group by l.type;
 
 -- ───────── Row-level security ─────────
 do $$ declare t text; begin
-  foreach t in array array['settings','library','brands','suppliers','catalog','catalog_log','leads','jobs','change_orders','sections','phases','lines','costs'] loop
+  foreach t in array array['settings','library','brands','suppliers','catalog','catalog_log','leads','jobs','change_orders','sections','phases','lines','costs','attachments'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists read_members on %I', t);
     execute format('drop policy if exists write_editors on %I', t);
@@ -304,6 +318,17 @@ grant usage, select on all sequences in schema public to authenticated;
 revoke all on all tables in schema public from anon;
 grant usage on sequence job_ref_seq to authenticated;
 grant execute on function next_job_ref, start_project, reopen_estimate, my_role, import_pin to authenticated;
+
+-- ───────── Invoice files (Supabase Storage) ─────────
+insert into storage.buckets (id, name, public) values ('invoices', 'invoices', false) on conflict (id) do nothing;
+drop policy if exists invoices_read on storage.objects;
+drop policy if exists invoices_insert on storage.objects;
+drop policy if exists invoices_update on storage.objects;
+drop policy if exists invoices_delete on storage.objects;
+create policy invoices_read on storage.objects for select to authenticated using (bucket_id = 'invoices' and public.is_member());
+create policy invoices_insert on storage.objects for insert to authenticated with check (bucket_id = 'invoices' and public.can_edit());
+create policy invoices_update on storage.objects for update to authenticated using (bucket_id = 'invoices' and public.can_edit());
+create policy invoices_delete on storage.objects for delete to authenticated using (bucket_id = 'invoices' and public.can_edit());
 
 -- ───────── Live updates ─────────
 do $$ declare t text; begin
